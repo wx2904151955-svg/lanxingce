@@ -69,13 +69,13 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 
 /* === Tag Browser in Library === */
 .tag-browser{background:#FFF;border:1px solid #f3d9cf;border-radius:8px;padding:10px;margin-bottom:8px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.tag-browser:not(.collapsed){max-height:60vh;overflow-y:auto}
-.tag-browser-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:0;position:sticky;top:0;background:#FFF;z-index:2;padding:2px 0}
+.tag-browser-toggle{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:0;background:#FFF;padding:2px 0}
 .tag-browser:not(.collapsed) .tag-browser-toggle{border-bottom:1px solid #f3d9cf;margin-bottom:8px}
 .tag-browser-toggle .toggle-icon{transition:transform .2s;color:#9d8189}
 .tag-browser.collapsed .tag-browser-body{display:none}
 .tag-browser.collapsed .toggle-icon{transform:rotate(-90deg)}
 .tag-browser-body{margin-top:8px}
+.tag-browser:not(.collapsed) .tag-browser-body{max-height:calc(60vh - 46px);overflow-y:auto;-webkit-overflow-scrolling:touch}
 .tag-browser-section{margin-bottom:8px}
 .tag-browser-section:last-child{margin-bottom:0}
 .tag-browser-label{font-size:11px;font-weight:700;color:#9d8189;margin-bottom:4px;display:flex;align-items:center;gap:6px}
