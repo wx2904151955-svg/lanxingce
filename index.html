@@ -334,6 +334,31 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 }
 
 
+/* === Calendar === */
+.calendar-wrap{background:#fff;border:1px solid #f3d9cf;border-radius:10px;padding:12px;margin-bottom:8px;max-width:520px;margin-left:auto;margin-right:auto}
+.calendar-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.cal-title{flex:1;text-align:center;font-weight:600;color:#7a656c;font-size:15px}
+.cal-nav,.cal-today{background:#fff6f1;border:1px solid #f3d9cf;color:#9d8189;border-radius:6px;padding:4px 12px;font-size:14px;cursor:pointer;line-height:1.4}
+.cal-nav:active,.cal-today:active{background:#f3d9cf}
+.cal-today{margin-left:2px;font-size:12px}
+.calendar-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.calendar-weekdays span{text-align:center;font-size:11px;color:#b9a6ac;padding:4px 0}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-cell{position:relative;aspect-ratio:1/0.92;background:#fff6f1;border:1px solid #f3d9cf;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:#7a656c;padding:2px;min-height:0;overflow:hidden}
+.cal-cell:active{background:#ffe1d4}
+.cal-cell.empty{background:transparent;border-color:transparent;cursor:default}
+.cal-cell.other{opacity:.35}
+.cal-cell.today{outline:2px solid #9d8189;outline-offset:-2px}
+.cal-cell.has{background:#ffe9df}
+.cal-d{font-size:13px;line-height:1}
+.cal-count{font-size:11px;color:#d4694a;margin-top:3px;line-height:1;font-weight:600}
+.cal-cell.has .cal-count{color:#c0392b}
+.calendar-legend{font-size:11px;color:#b9a6ac;margin-top:10px;text-align:center;line-height:1.6}
+
+@media(max-width:520px){
+  .cal-cell{font-size:12px}
+  .calendar-wrap{padding:10px}
+}
 </style>
 </head>
 <body>
@@ -426,6 +451,10 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/><polyline points="9 13 12 16 18 10"/></svg>
     标签库
   </button>
+  <button class="tab" data-tab="calendar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    日历
+  </button>
 </nav>
 
 <!-- Panel: Pending -->
@@ -510,6 +539,23 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
   </div>
   <div id="taglibPrimary"></div>
   <div id="taglibSecondary"></div>
+</div>
+
+<!-- Panel: Calendar -->
+<div class="panel" id="panel-calendar">
+  <div class="calendar-wrap">
+    <div class="calendar-head">
+      <button class="cal-nav" id="calPrev" aria-label="上个月">‹</button>
+      <span class="cal-title" id="calTitle"></span>
+      <button class="cal-nav" id="calNext" aria-label="下个月">›</button>
+      <button class="cal-today" id="calToday">今天</button>
+    </div>
+    <div class="calendar-weekdays">
+      <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+    </div>
+    <div class="calendar-grid" id="calGrid"></div>
+    <div class="calendar-legend">格子里的数字 = 当天收入的素材数，点击任意有数字的日期可查看当天素材</div>
+  </div>
 </div>
 
 <!-- Batch Tag Overlay -->
@@ -618,6 +664,17 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
   </div>
 </div>
 
+<!-- 单日素材弹层 -->
+<div class="modal-overlay" id="dayModal">
+  <div class="modal today-modal" style="max-width:420px">
+    <div class="today-modal-head">
+      <h3><span id="dayModalTitle"></span><span class="today-modal-sub" id="dayModalCount"></span></h3>
+      <button class="modal-btn modal-cancel" id="dayModalClose" style="flex:0 0 auto;min-height:auto;padding:5px 14px">关闭</button>
+    </div>
+    <div class="today-modal-list" id="dayList"></div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -677,6 +734,7 @@ var DEFAULT_PRESETS = {
 var items=[];
 var settings={presets:{},customPrimary:[],customSecondaryGroups:{},lastUsedTags:[],removedPresets:{primary:[],secondary:{}}};
 var currentTab='pending';
+var calendarView=new Date();
 var libraryFilter='all';
 var libraryPrimaryFilters=[];
 var librarySecondaryFilters=[];
@@ -913,6 +971,7 @@ function fmtDate(iso){
   return (d.getMonth()+1)+'月'+d.getDate()+'日';
 }
 function isToday(iso){return new Date(iso).toDateString()===new Date().toDateString();}
+function ymd(iso){var d=new Date(iso);var y=d.getFullYear();var m=('0'+(d.getMonth()+1)).slice(-2);var day=('0'+d.getDate()).slice(-2);return y+'-'+m+'-'+day;}
 function parseTags(s){
   var parts=(s||'').split(/[,，、\n]/).map(function(t){return t.trim();}).filter(function(t){return t.length>0&&t.length<=20;});
   return Array.from(new Set(parts));
@@ -1055,6 +1114,7 @@ function renderAll(){
   else if(currentTab==='library')renderLibrary();
   else if(currentTab==='search')renderSearch();
   else if(currentTab==='taglib')renderTagLibrary();
+  else if(currentTab==='calendar')renderCalendar();
 }
 
 // 速记区的"快速标签"改为点选（不再输入）
@@ -2014,6 +2074,25 @@ function setupEvents(){
     }
   });
 
+  // Calendar
+  safeOn('calPrev','click',function(){calendarView.setMonth(calendarView.getMonth()-1);renderCalendar();});
+  safeOn('calNext','click',function(){calendarView.setMonth(calendarView.getMonth()+1);renderCalendar();});
+  safeOn('calToday','click',function(){calendarView=new Date();renderCalendar();});
+  safeOn('calGrid','click',function(e){
+    var cell=e.target.closest('[data-cal-day]');
+    if(!cell)return;
+    openDayModal(cell.dataset.calDay);
+  });
+  safeOn('dayModalClose','click',closeDayModal);
+  safeOn('dayModal','click',function(e){if(e.target===this)closeDayModal();});
+  safeOn('dayList','click',function(e){
+    var more=e.target.closest?e.target.closest('.today-card-more'):null;
+    if(more){
+      var txt=more.parentNode.querySelector('.today-card-text');
+      if(txt){var exp=txt.classList.toggle('collapsed');more.textContent=exp?'展开全文 ▾':'收起 ▴';}
+    }
+  });
+
   // Tag browser collapse toggle
   safeOn('tagBrowserToggle','click',function(){
     tagBrowserCollapsed=!tagBrowserCollapsed;
@@ -2948,6 +3027,69 @@ function renderTodayModal(){
 }
 function openTodayModal(){renderTodayModal();var m=document.getElementById('todayModal');if(m)m.classList.add('show');}
 function closeTodayModal(){var m=document.getElementById('todayModal');if(m)m.classList.remove('show');}
+
+/* 日历：按 createdAt 统计每天收入的素材数 */
+function renderCalendar(){
+  var grid=document.getElementById('calGrid');
+  if(!grid)return;
+  var view=calendarView;
+  var y=view.getFullYear(),m=view.getMonth();
+  var title=document.getElementById('calTitle');
+  if(title)title.textContent=y+'年'+(m+1)+'月';
+  // 按天统计素材数（含待分类，按创建时间）
+  var counts={};
+  items.forEach(function(it){var k=ymd(it.createdAt);counts[k]=(counts[k]||0)+1;});
+  var first=new Date(y,m,1);
+  var startDow=first.getDay();
+  var daysInMonth=new Date(y,m+1,0).getDate();
+  var todayStr=ymd(new Date().toISOString());
+  var pad=function(n){return ('0'+n).slice(-2);};
+  var html='';
+  for(var i=0;i<startDow;i++)html+='<div class="cal-cell empty"></div>';
+  for(var d=1;d<=daysInMonth;d++){
+    var key=y+'-'+pad(m+1)+'-'+pad(d);
+    var c=counts[key]||0;
+    var cls='cal-cell';
+    if(key===todayStr)cls+=' today';
+    if(c>0)cls+=' has';
+    html+='<div class="'+cls+'" data-cal-day="'+key+'"><span class="cal-d">'+d+'</span>';
+    if(c>0)html+='<span class="cal-count">'+c+'</span>';
+    html+='</div>';
+  }
+  grid.innerHTML=html;
+}
+function renderDayItemsModal(key){
+  var list=items.filter(function(i){return ymd(i.createdAt)===key;})
+    .sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
+  var title=document.getElementById('dayModalTitle');
+  if(title)title.textContent=key;
+  var sub=document.getElementById('dayModalCount');
+  if(sub)sub.textContent=list.length>0?(' · 共 '+list.length+' 条'):'';
+  var box=document.getElementById('dayList');
+  if(!box)return;
+  if(list.length===0){box.innerHTML='<div class="today-empty">这一天还没有收录素材</div>';return;}
+  var html='';
+  list.forEach(function(it){
+    var imgs='';
+    if(it.images&&it.images.length>0){
+      imgs='<div class="today-card-imgs">'+it.images.map(function(s){return '<img src="'+s+'" alt="" loading="lazy" />';}).join('')+'</div>';
+    }
+    var tags='';
+    var hasTags=it.primaryTags.length>0||it.secondaryTags.length>0;
+    if(hasTags){tags=it.primaryTags.concat(it.secondaryTags).map(function(t){return '<span class="today-card-tag">'+esc(t)+'</span>';}).join('');}
+    else{tags='<span class="today-card-tag" style="background:#f3d9cf;color:#9d8189">未标签</span>';}
+    html+='<div class="today-card-view">'+
+      '<div class="today-card-text collapsed" data-id="'+it.id+'">'+esc(it.content)+'</div>'+
+      '<div class="today-card-more show" data-id="'+it.id+'">展开全文 ▾</div>'+
+      imgs+
+      '<div class="today-card-tags">'+tags+'</div>'+
+      '<div class="today-card-date">'+fmtDate(it.createdAt)+'</div>'+
+    '</div>';
+  });
+  box.innerHTML=html;
+}
+function openDayModal(key){renderDayItemsModal(key);var m=document.getElementById('dayModal');if(m)m.classList.add('show');}
+function closeDayModal(){var m=document.getElementById('dayModal');if(m)m.classList.remove('show');}
 function updateCloudModal(){
   var body=document.getElementById('cloudBody');
   if(!body)return;
