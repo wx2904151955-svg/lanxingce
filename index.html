@@ -3,14 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="揽星册">
 <meta name="theme-color" content="#fff6f1">
-<link rel="manifest" href="./manifest.json">
 <link rel="icon" type="image/png" sizes="512x512" href="./icon.png">
-<link rel="apple-touch-icon" href="./icon.png">
 <title>揽星册</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -2885,7 +2879,7 @@ else init();
 </script>
 
 <script>
-// 路线C：注册 service worker，使网页可离线打开、添加到主屏幕像原生 App
+// 注册 service worker：仅用于离线打开 + 后台自动同步（断网改→联网自动推云端），不再提供"安装为 App"
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('./sw.js').catch(function(e){console.warn('SW 注册失败',e);});
