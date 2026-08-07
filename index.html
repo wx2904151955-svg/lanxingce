@@ -165,7 +165,8 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 
 /* Tag Editor */
 .tag-editor{display:none;margin-top:8px;padding:10px 12px;background:#fff6f1;border-radius:8px}
-.tag-editor.show{display:block;max-height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.tag-editor.show{display:flex;flex-direction:column;max-height:62vh;overflow:hidden}
+.tag-editor-body{max-height:calc(62vh - 56px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:4px}
 .tag-editor-section{margin-bottom:8px}
 .tag-editor-section:last-child{margin-bottom:0}
 .tag-editor-label{font-size:12px;font-weight:600;color:#9d8189;margin-bottom:5px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
@@ -188,7 +189,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 
 .tag-editor-input-custom{border:1px solid #CCC;border-radius:12px;padding:3px 10px;font-size:12px;outline:none;background:#FFF;color:#7a656c;min-width:120px;height:26px}
 .tag-editor-input-custom:focus{border-color:#f4acb7}
-.tag-editor-actions{display:flex;gap:6px;padding-top:8px;border-top:1px solid #f3d9cf;flex-wrap:wrap}
+.tag-editor-actions{display:flex;gap:6px;padding-top:8px;border-top:1px solid #f3d9cf;flex-wrap:wrap;flex-shrink:0;background:#fff6f1;position:sticky;bottom:0}
 .tag-editor-btn{border:none;padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;min-height:30px}
 .tag-editor-btn.save{background:#9d8189;color:#fff}
 .tag-editor-btn.cancel{background:#f3d9cf;color:#9d8189}
@@ -1111,6 +1112,7 @@ function buildTagEditorDom(ed,item){
   var removedP=(settings.removedPresets&&settings.removedPresets.primary)||[];
   allPrim=Array.from(new Set(allPrim)).filter(function(t){return removedP.indexOf(t)===-1;});
   var html='';
+  html+='<div class="tag-editor-body">';
   html+='<div class="tag-editor-section">';
   html+='<div class="tag-editor-label">一级标签</div>';
   html+='<div class="tag-editor-chips" data-role="primary-chips">';
@@ -1151,6 +1153,7 @@ function buildTagEditorDom(ed,item){
     html+='</div>';
     html+='</div>';
   }
+  html+='</div>';/* end tag-editor-body */
   html+='<div class="tag-editor-actions">';
   html+='<button class="tag-editor-btn save" data-action="save-tags" data-id="'+item.id+'">确认保存</button>';
   html+='<button class="tag-editor-btn preset-save" data-action="save-preset" data-id="'+item.id+'">收藏当前组合</button>';
@@ -2383,6 +2386,7 @@ function buildBatchTagEditor(){
   var removedP=(settings.removedPresets&&settings.removedPresets.primary)||[];
   allPrim=Array.from(new Set(allPrim)).filter(function(t){return removedP.indexOf(t)===-1;});
   var html='';
+  html+='<div class="tag-editor-body">';
   html+='<div class="tag-editor-section">';
   html+='<div class="tag-editor-label">一级标签 <span class="hint">（自由选择）</span></div>';
   html+='<div class="tag-editor-chips" id="batchPrimaryChips">';
@@ -2422,6 +2426,7 @@ function buildBatchTagEditor(){
     html+='</div>';
     html+='</div>';
   }
+  html+='</div>';/* end tag-editor-body */
   html+='<div class="tag-editor-actions">';
   html+='<button class="tag-editor-btn save" id="batchTagConfirm">应用到所选素材</button>';
   html+='<button class="tag-editor-btn preset-save" id="batchSavePreset">收藏当前组合</button>';
