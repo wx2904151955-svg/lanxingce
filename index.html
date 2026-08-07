@@ -2785,5 +2785,14 @@ else init();
 })();
 </script>
 
+<script>
+// 路线C：注册 service worker，使网页可离线打开、添加到主屏幕像原生 App
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(e){console.warn('SW 注册失败',e);});
+  });
+}
+</script>
+
 </body>
 </html>
