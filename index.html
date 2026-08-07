@@ -503,7 +503,6 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
   <h3>数据管理</h3>
   <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
     <button class="data-btn" id="clearSampleBtn">清空示例数据</button>
-    <button class="data-btn danger" id="clearAllBtn">清空全部数据</button>
     <button class="data-btn" id="manageTagsBtn">打开标签库</button>
   </div>
   <div class="data-hint">数据保存在浏览器本地，不会上传服务器。登录「云同步」后，素材（内容、标签、图片）会备份到你自己的 Supabase 账户并在多设备间同步。建议仍定期导出备份。</div>
@@ -2340,9 +2339,6 @@ function setupEvents(){
     if(si.length===0){showToast('没有示例数据');return;}
     confirm('将删除 '+si.length+' 条示例数据，你的其他素材不受影响。',function(){items=items.filter(function(i){return i.id.indexOf('sample_')!==0;});si.forEach(function(it){markDelete(it.id);});sv();renderAll();showToast('已清空示例数据');},'清空示例数据');
   });
-  safeOn('clearAllBtn','click',function(){
-    confirm('此操作将删除所有 '+items.length+' 条素材，且无法恢复。建议先导出备份。',function(){items=[];sv();cloudWipeAll();cloudDirty={};cloudDeleteQ=[];renderAll();showToast('已清空全部数据');},'清空全部数据');
-  });
 
   // Long-press material content to expand (mobile-friendly)
   var lpTimer=null;
@@ -2811,12 +2807,6 @@ function scheduleFlush(){
   if(cloudFlushTimer)clearTimeout(cloudFlushTimer);
   cloudFlushTimer=setTimeout(function(){drainPending();},700);
   if(navigator.onLine===false)registerBackgroundSync();
-}
-function cloudWipeAll(){
-  if(!sbClient||!cloudUser)return Promise.resolve();
-  return sbClient.from('fragments').delete().eq('user_id',cloudUser.id).then(function(){
-    return sbClient.from('fragment_deletions').delete().eq('user_id',cloudUser.id);
-  });
 }
 function openCloudModal(){var m=document.getElementById('cloudModal');if(m)m.classList.add('show');updateCloudModal();}
 function closeCloudModal(){var m=document.getElementById('cloudModal');if(m)m.classList.remove('show');}
