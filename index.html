@@ -293,6 +293,22 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 .modal-actions{display:flex;gap:6px}
 .modal-btn{flex:1;border:none;padding:9px;border-radius:6px;font-size:13px;cursor:pointer;min-height:40px}
 .modal-cancel{background:#f3d9cf;color:#9d8189}
+.today-modal{max-width:420px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
+.today-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #f3d9cf}
+.today-modal-head h3{margin:0;font-size:16px;color:#7a656c}
+.today-modal-sub{font-size:12px;color:#b9a6ac;font-weight:400;margin-left:6px}
+.today-modal-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.today-empty{text-align:center;color:#b9a6ac;font-size:13px;padding:34px 0;line-height:1.8}
+.today-card-view{background:#FFF;border:1px solid #f3d9cf;border-radius:8px;padding:10px 12px}
+.today-card-text{font-size:14px;line-height:1.65;color:#7a656c;white-space:pre-wrap;word-break:break-word}
+.today-card-text.collapsed{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.today-card-more{font-size:12px;color:#9d8189;margin-top:5px;cursor:pointer;user-select:none;display:none}
+.today-card-more.show{display:block}
+.today-card-imgs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.today-card-imgs img{max-width:74px;max-height:74px;border-radius:6px;object-fit:cover}
+.today-card-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.today-card-tag{border:1px solid #f3d9cf;background:#fff6f1;color:#9d8189;padding:1px 8px;border-radius:10px;font-size:11px}
+.today-card-date{font-size:11px;color:#b9a6ac;margin-top:7px}
 .modal-confirm{background:#d98c8c;color:#fff}
 .modal-confirm.primary-confirm{background:#9d8189}
 
@@ -586,6 +602,17 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
     <div class="modal-actions">
       <button class="modal-btn modal-cancel" id="cloudClose">关闭</button>
     </div>
+  </div>
+</div>
+
+<!-- 今日灵感独立页面 -->
+<div class="modal-overlay" id="todayModal">
+  <div class="modal today-modal" style="max-width:420px">
+    <div class="today-modal-head">
+      <h3>今日灵感<span class="today-modal-sub" id="todayModalCount"></span></h3>
+      <button class="modal-btn modal-cancel" id="todayModalClose" style="flex:0 0 auto;min-height:auto;padding:5px 14px">关闭</button>
+    </div>
+    <div class="today-modal-list" id="todayList"></div>
   </div>
 </div>
 
@@ -1967,8 +1994,15 @@ function setupEvents(){
 
   // Today area buttons
   safeOn('viewUntaggedBtn','click',function(){switchTab('pending');});
-  safeOn('viewTodayBtn','click',function(){
-    libraryFilter='today';libraryPrimaryFilters=[];librarySecondaryFilters=[];librarySort='time';libraryPage=1;switchTab('library');
+  safeOn('viewTodayBtn','click',function(){openTodayModal();});
+  safeOn('todayModalClose','click',closeTodayModal);
+  safeOn('todayModal','click',function(e){if(e.target===this)closeTodayModal();});
+  safeOn('todayList','click',function(e){
+    var more=e.target.closest?e.target.closest('.today-card-more'):null;
+    if(more){
+      var txt=more.parentNode.querySelector('.today-card-text');
+      if(txt){var exp=txt.classList.toggle('collapsed');more.textContent=exp?'展开全文 ▾':'收起 ▴';}
+    }
   });
 
   // Tag browser collapse toggle
@@ -2861,6 +2895,47 @@ function scheduleFlush(){
 }
 function openCloudModal(){var m=document.getElementById('cloudModal');if(m)m.classList.add('show');updateCloudModal();}
 function closeCloudModal(){var m=document.getElementById('cloudModal');if(m)m.classList.remove('show');}
+
+/* 今日灵感独立页面（不再跳转素材库） */
+function getTodayItems(){
+  return items.filter(function(i){return isToday(i.createdAt);})
+    .sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
+}
+function renderTodayModal(){
+  var list=getTodayItems();
+  var sub=document.getElementById('todayModalCount');
+  if(sub)sub.textContent=list.length>0?(' · 共 '+list.length+' 条'):'';
+  var box=document.getElementById('todayList');
+  if(!box)return;
+  if(list.length===0){
+    box.innerHTML='<div class="today-empty">今天还没有收录灵感<br>在速记区写一句话试试 ✨</div>';
+    return;
+  }
+  var html='';
+  list.forEach(function(it){
+    var imgs='';
+    if(it.images&&it.images.length>0){
+      imgs='<div class="today-card-imgs">'+it.images.map(function(s){return '<img src="'+s+'" alt="" loading="lazy" />';}).join('')+'</div>';
+    }
+    var tags='';
+    var hasTags=it.primaryTags.length>0||it.secondaryTags.length>0;
+    if(hasTags){
+      tags=it.primaryTags.concat(it.secondaryTags).map(function(t){return '<span class="today-card-tag">'+esc(t)+'</span>';}).join('');
+    }else{
+      tags='<span class="today-card-tag" style="background:#f3d9cf;color:#9d8189">未标签</span>';
+    }
+    html+='<div class="today-card-view">'+
+      '<div class="today-card-text collapsed" data-id="'+it.id+'">'+esc(it.content)+'</div>'+
+      '<div class="today-card-more show" data-id="'+it.id+'">展开全文 ▾</div>'+
+      imgs+
+      '<div class="today-card-tags">'+tags+'</div>'+
+      '<div class="today-card-date">'+fmtDate(it.createdAt)+'</div>'+
+    '</div>';
+  });
+  box.innerHTML=html;
+}
+function openTodayModal(){renderTodayModal();var m=document.getElementById('todayModal');if(m)m.classList.add('show');}
+function closeTodayModal(){var m=document.getElementById('todayModal');if(m)m.classList.remove('show');}
 function updateCloudModal(){
   var body=document.getElementById('cloudBody');
   if(!body)return;
