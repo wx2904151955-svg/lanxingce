@@ -3022,6 +3022,13 @@ if('serviceWorker' in navigator){
     var d=e.data||{};
     if(d.type==='LANX_SYNC_DONE'&&typeof cloudPullThenPush==='function')cloudPullThenPush();
   });
+  // 新版本 Service Worker 接管后自动刷新一次页面，确保加载最新代码（防旧版缓存）
+  var swRefreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    if(swRefreshing)return;
+    swRefreshing=true;
+    window.location.reload();
+  });
 }
 </script>
 
