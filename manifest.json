@@ -1,0 +1,18 @@
+{
+  "name": "揽星册",
+  "short_name": "揽星册",
+  "description": "收集灵感碎片与素材",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff6f1",
+  "theme_color": "#fff6f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
