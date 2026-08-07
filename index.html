@@ -344,9 +344,8 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 .calendar-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
 .calendar-weekdays span{text-align:center;font-size:11px;color:#b9a6ac;padding:4px 0}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cal-cell{position:relative;aspect-ratio:1/0.92;background:#fff6f1;border:1px solid #f3d9cf;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:#7a656c;padding:2px;min-height:0;overflow:hidden}
-.cal-cell:active{background:#ffe1d4}
-.cal-cell.empty{background:transparent;border-color:transparent;cursor:default}
+.cal-cell{position:relative;aspect-ratio:1/0.92;background:#fff6f1;border:1px solid #f3d9cf;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:default;font-size:13px;color:#7a656c;padding:2px;min-height:0;overflow:hidden}
+.cal-cell.empty{background:transparent;border-color:transparent}
 .cal-cell.other{opacity:.35}
 .cal-cell.today{outline:2px solid #9d8189;outline-offset:-2px}
 .cal-cell.has{background:#ffe9df}
@@ -554,7 +553,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
       <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
     </div>
     <div class="calendar-grid" id="calGrid"></div>
-    <div class="calendar-legend">格子里的数字 = 当天收入的素材数，点击任意有数字的日期可查看当天素材</div>
+    <div class="calendar-legend" id="calSummary"></div>
   </div>
 </div>
 
@@ -661,17 +660,6 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
       <button class="modal-btn modal-cancel" id="todayModalClose" style="flex:0 0 auto;min-height:auto;padding:5px 14px">关闭</button>
     </div>
     <div class="today-modal-list" id="todayList"></div>
-  </div>
-</div>
-
-<!-- 单日素材弹层 -->
-<div class="modal-overlay" id="dayModal">
-  <div class="modal today-modal" style="max-width:420px">
-    <div class="today-modal-head">
-      <h3><span id="dayModalTitle"></span><span class="today-modal-sub" id="dayModalCount"></span></h3>
-      <button class="modal-btn modal-cancel" id="dayModalClose" style="flex:0 0 auto;min-height:auto;padding:5px 14px">关闭</button>
-    </div>
-    <div class="today-modal-list" id="dayList"></div>
   </div>
 </div>
 
@@ -2078,20 +2066,6 @@ function setupEvents(){
   safeOn('calPrev','click',function(){calendarView.setMonth(calendarView.getMonth()-1);renderCalendar();});
   safeOn('calNext','click',function(){calendarView.setMonth(calendarView.getMonth()+1);renderCalendar();});
   safeOn('calToday','click',function(){calendarView=new Date();renderCalendar();});
-  safeOn('calGrid','click',function(e){
-    var cell=e.target.closest('[data-cal-day]');
-    if(!cell)return;
-    openDayModal(cell.dataset.calDay);
-  });
-  safeOn('dayModalClose','click',closeDayModal);
-  safeOn('dayModal','click',function(e){if(e.target===this)closeDayModal();});
-  safeOn('dayList','click',function(e){
-    var more=e.target.closest?e.target.closest('.today-card-more'):null;
-    if(more){
-      var txt=more.parentNode.querySelector('.today-card-text');
-      if(txt){var exp=txt.classList.toggle('collapsed');more.textContent=exp?'展开全文 ▾':'收起 ▴';}
-    }
-  });
 
   // Tag browser collapse toggle
   safeOn('tagBrowserToggle','click',function(){
@@ -3045,51 +3019,27 @@ function renderCalendar(){
   var todayStr=ymd(new Date().toISOString());
   var pad=function(n){return ('0'+n).slice(-2);};
   var html='';
+  var monthTotal=0,activeDays=0;
   for(var i=0;i<startDow;i++)html+='<div class="cal-cell empty"></div>';
   for(var d=1;d<=daysInMonth;d++){
     var key=y+'-'+pad(m+1)+'-'+pad(d);
     var c=counts[key]||0;
+    if(c>0){monthTotal+=c;activeDays++;}
     var cls='cal-cell';
     if(key===todayStr)cls+=' today';
     if(c>0)cls+=' has';
-    html+='<div class="'+cls+'" data-cal-day="'+key+'"><span class="cal-d">'+d+'</span>';
+    html+='<div class="'+cls+'"><span class="cal-d">'+d+'</span>';
     if(c>0)html+='<span class="cal-count">'+c+'</span>';
     html+='</div>';
   }
   grid.innerHTML=html;
+  var sum=document.getElementById('calSummary');
+  if(sum){
+    sum.textContent=monthTotal>0
+      ? ('本月共收入 '+monthTotal+' 条素材 · 有记录 '+activeDays+' 天')
+      : '本月还没有收录素材';
+  }
 }
-function renderDayItemsModal(key){
-  var list=items.filter(function(i){return ymd(i.createdAt)===key;})
-    .sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
-  var title=document.getElementById('dayModalTitle');
-  if(title)title.textContent=key;
-  var sub=document.getElementById('dayModalCount');
-  if(sub)sub.textContent=list.length>0?(' · 共 '+list.length+' 条'):'';
-  var box=document.getElementById('dayList');
-  if(!box)return;
-  if(list.length===0){box.innerHTML='<div class="today-empty">这一天还没有收录素材</div>';return;}
-  var html='';
-  list.forEach(function(it){
-    var imgs='';
-    if(it.images&&it.images.length>0){
-      imgs='<div class="today-card-imgs">'+it.images.map(function(s){return '<img src="'+s+'" alt="" loading="lazy" />';}).join('')+'</div>';
-    }
-    var tags='';
-    var hasTags=it.primaryTags.length>0||it.secondaryTags.length>0;
-    if(hasTags){tags=it.primaryTags.concat(it.secondaryTags).map(function(t){return '<span class="today-card-tag">'+esc(t)+'</span>';}).join('');}
-    else{tags='<span class="today-card-tag" style="background:#f3d9cf;color:#9d8189">未标签</span>';}
-    html+='<div class="today-card-view">'+
-      '<div class="today-card-text collapsed" data-id="'+it.id+'">'+esc(it.content)+'</div>'+
-      '<div class="today-card-more show" data-id="'+it.id+'">展开全文 ▾</div>'+
-      imgs+
-      '<div class="today-card-tags">'+tags+'</div>'+
-      '<div class="today-card-date">'+fmtDate(it.createdAt)+'</div>'+
-    '</div>';
-  });
-  box.innerHTML=html;
-}
-function openDayModal(key){renderDayItemsModal(key);var m=document.getElementById('dayModal');if(m)m.classList.add('show');}
-function closeDayModal(){var m=document.getElementById('dayModal');if(m)m.classList.remove('show');}
 function updateCloudModal(){
   var body=document.getElementById('cloudBody');
   if(!body)return;
