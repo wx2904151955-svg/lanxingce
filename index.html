@@ -261,6 +261,15 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 .tlib-section{background:#FFF;border:1px solid #f3d9cf;border-radius:8px;padding:10px;margin-bottom:8px}
 .tlib-section-title{font-size:12px;font-weight:700;color:#9d8189;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .tlib-section-title .tlib-hint{font-weight:400;color:#b9a6ac;font-size:11px}
+.tlib-gtag{font-weight:400;font-size:10px;color:#c98b74;background:#fff1e9;border:1px solid #f3d9cf;border-radius:4px;padding:1px 5px;line-height:1.5}
+.tlib-gact{margin-left:auto;display:flex;gap:4px;flex:0 0 auto}
+.tlib-gact button{background:#fff6f1;border:1px solid #f3d9cf;color:#9d8189;border-radius:5px;padding:2px 7px;font-size:12px;cursor:pointer;line-height:1.4}
+.tlib-gact button:active{background:#f3d9cf}
+.tlib-gact button.del{color:#c0392b}
+.tlib-gempty{font-size:11px;color:#b9a6ac;padding:2px 0}
+.addgroup-hint{font-size:12px;color:#b9a6ac;line-height:1.6;margin:-2px 0 10px}
+#panel-taglib .list-header{flex-wrap:wrap;gap:6px}
+#panel-taglib .list-actions{flex-wrap:wrap;justify-content:flex-end}
 .tlib-chips{display:flex;flex-wrap:wrap;gap:6px}
 .tlib-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #f3d9cf;background:#FFF;border-radius:14px;padding:5px 7px 5px 12px;font-size:13px;min-height:32px;cursor:pointer;user-select:none;transition:all .12s}
 .tlib-chip:active{opacity:.8}
@@ -533,6 +542,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
   <div class="list-header">
     <span class="list-stats" id="taglibStats"></span>
     <div class="list-actions">
+      <button class="list-btn" id="addGroupBtn">+ 新增大标签</button>
       <button class="list-btn" id="addTagBtn">+ 新增标签</button>
     </div>
   </div>
@@ -624,19 +634,24 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
       <button id="addTypePrimary" class="active" data-type="primary">一级标签</button>
       <button id="addTypeSecondary" data-type="secondary">二级标签</button>
     </div>
-    <select id="addTagGroup">
-      <option value="心情">心情类</option>
-      <option value="场景">场景类</option>
-      <option value="文笔">文笔类</option>
-      <option value="对话">对话类</option>
-      <option value="梗">梗类</option>
-      <option value="人设">人设类</option>
-      <option value="剧情">剧情类</option>
-    </select>
+    <select id="addTagGroup"></select>
     <input id="addTagName" type="text" placeholder="输入标签名称" maxlength="20" />
     <div class="modal-actions">
       <button class="modal-btn modal-cancel" id="addTagCancel">取消</button>
       <button class="modal-btn modal-confirm primary-confirm" id="addTagConfirm">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增二级大标签（类别） -->
+<div class="modal-overlay" id="addGroupModal">
+  <div class="modal">
+    <h3 id="addGroupTitle">新增二级大标签</h3>
+    <div class="addgroup-hint" id="addGroupHint">大标签就是二级标签的分类，例如「心情」「场景」。建好后可在里面添加具体的二级标签。</div>
+    <input id="addGroupName" type="text" placeholder="输入大标签名称，如「意象」" maxlength="10" />
+    <div class="modal-actions">
+      <button class="modal-btn modal-cancel" id="addGroupCancel">取消</button>
+      <button class="modal-btn modal-confirm primary-confirm" id="addGroupConfirm">添加</button>
     </div>
   </div>
 </div>
@@ -720,7 +735,7 @@ var DEFAULT_PRESETS = {
 
 // === State ===
 var items=[];
-var settings={presets:{},customPrimary:[],customSecondaryGroups:{},lastUsedTags:[],removedPresets:{primary:[],secondary:{}}};
+var settings={presets:{},customPrimary:[],customSecondaryGroups:{},customSecondaryGroupNames:[],lastUsedTags:[],removedPresets:{primary:[],secondary:{}}};
 var currentTab='pending';
 var calendarView=new Date();
 var libraryFilter='all';
@@ -818,6 +833,74 @@ function getAllSecondaryForGroup(groupName){
   var custom=getCustomSecondaryForGroup(groupName);
   var removed=(settings.removedPresets&&settings.removedPresets.secondary&&settings.removedPresets.secondary[groupName])||[];
   return preset.concat(custom).filter(function(t){return removed.indexOf(t)===-1;});
+}
+
+// === Secondary group (二级大标签) helpers ===
+function isCustomGroup(g){
+  return (settings.customSecondaryGroupNames||[]).indexOf(g)!==-1;
+}
+// 把已保存的自定义大类同步进运行时数组，让全站遍历自动带上
+function syncSecondaryGroupNames(){
+  if(!settings.customSecondaryGroupNames)settings.customSecondaryGroupNames=[];
+  settings.customSecondaryGroupNames.forEach(function(g){
+    if(SECONDARY_GROUP_NAMES.indexOf(g)===-1)SECONDARY_GROUP_NAMES.push(g);
+    if(!settings.customSecondaryGroups[g])settings.customSecondaryGroups[g]=[];
+  });
+}
+function addSecondaryGroup(name){
+  name=(name||'').trim();
+  if(!name)return{ok:false,msg:'请输入大标签名称'};
+  if(name.length>10)return{ok:false,msg:'大标签名称最多 10 个字'};
+  if(SECONDARY_GROUP_NAMES.indexOf(name)!==-1)return{ok:false,msg:'已存在同名大标签'};
+  if(!settings.customSecondaryGroupNames)settings.customSecondaryGroupNames=[];
+  settings.customSecondaryGroupNames.push(name);
+  settings.customSecondaryGroups[name]=[];
+  SECONDARY_GROUP_NAMES.push(name);
+  svSettings();
+  return{ok:true};
+}
+function renameSecondaryGroup(oldName,newName){
+  newName=(newName||'').trim();
+  if(!newName||newName===oldName)return{ok:false,msg:''};
+  if(newName.length>10)return{ok:false,msg:'大标签名称最多 10 个字'};
+  if(SECONDARY_GROUP_NAMES.indexOf(newName)!==-1)return{ok:false,msg:'已存在同名大标签'};
+  if(!isCustomGroup(oldName))return{ok:false,msg:'预设大标签不支持改名'};
+  var ci=settings.customSecondaryGroupNames.indexOf(oldName);
+  if(ci!==-1)settings.customSecondaryGroupNames[ci]=newName;
+  settings.customSecondaryGroups[newName]=settings.customSecondaryGroups[oldName]||[];
+  delete settings.customSecondaryGroups[oldName];
+  if(settings.removedPresets&&settings.removedPresets.secondary&&settings.removedPresets.secondary[oldName]){
+    settings.removedPresets.secondary[newName]=settings.removedPresets.secondary[oldName];
+    delete settings.removedPresets.secondary[oldName];
+  }
+  var gi=SECONDARY_GROUP_NAMES.indexOf(oldName);
+  if(gi!==-1)SECONDARY_GROUP_NAMES[gi]=newName;
+  svSettings();
+  return{ok:true};
+}
+// 删除自定义大类：该类下的标签会一并从素材上移除
+function deleteSecondaryGroup(name){
+  if(!isCustomGroup(name))return{ok:false,msg:'预设大标签不支持删除'};
+  var tags=getAllSecondaryForGroup(name);
+  items.forEach(function(item){
+    if(!item.secondaryTags)return;
+    var before=item.secondaryTags.length;
+    item.secondaryTags=item.secondaryTags.filter(function(t){return tags.indexOf(t)===-1;});
+    if(item.secondaryTags.length!==before)item.updatedAt=new Date().toISOString();
+  });
+  Object.keys(settings.presets).forEach(function(k){
+    var p=settings.presets[k];
+    if(p&&p.secondary)p.secondary=p.secondary.filter(function(t){return tags.indexOf(t)===-1;});
+  });
+  var ci=settings.customSecondaryGroupNames.indexOf(name);
+  if(ci!==-1)settings.customSecondaryGroupNames.splice(ci,1);
+  delete settings.customSecondaryGroups[name];
+  if(settings.removedPresets&&settings.removedPresets.secondary)delete settings.removedPresets.secondary[name];
+  var gi=SECONDARY_GROUP_NAMES.indexOf(name);
+  if(gi!==-1)SECONDARY_GROUP_NAMES.splice(gi,1);
+  librarySecondaryFilters=librarySecondaryFilters.filter(function(t){return tags.indexOf(t)===-1;});
+  sv();svSettings();markAllDirty();
+  return{ok:true,removed:tags.length};
 }
 
 // === Data Layer ===
@@ -1246,7 +1329,7 @@ function buildTagEditorDom(ed,item){
   html+='<div class="tag-editor-label">二级标签 <span class="hint">（所有类别自由混搭）</span></div>';
   SECONDARY_GROUP_NAMES.forEach(function(gname){
     var allTags=getAllSecondaryForGroup(gname);
-    if(allTags.length===0)return;
+    if(allTags.length===0&&!isCustomGroup(gname))return;
     html+='<div class="tag-group-row">';
     html+='<span class="tag-group-label">'+esc(gname)+'类</span>';
     html+='<div class="tag-editor-chips" data-role="secondary-group" data-group="'+esc(gname)+'">';
@@ -1732,9 +1815,23 @@ function renderTagLibrary(){
   for(var g=0;g<SECONDARY_GROUP_NAMES.length;g++){
     var gname=SECONDARY_GROUP_NAMES[g];
     var list=getAllSecondaryForGroup(gname);
-    if(list.length===0)continue;
+    var isCust=isCustomGroup(gname);
+    if(list.length===0&&!isCust)continue;
     anySec=true;
-    secHtml+='<div class="tlib-section"><div class="tlib-section-title">'+esc(gname)+'类 <span class="tlib-hint">二级标签</span></div><div class="tlib-chips">';
+    secHtml+='<div class="tlib-section"><div class="tlib-section-title">'+esc(gname)+'类 '+
+      (isCust
+        ? '<span class="tlib-gtag">自建大标签</span><span class="tlib-gact">'+
+          '<button data-action="tlib-group-add" data-group="'+esc(gname)+'" title="向该大标签新增二级标签">+ 标签</button>'+
+          '<button data-action="tlib-group-rename" data-group="'+esc(gname)+'" title="重命名大标签">&#9998;</button>'+
+          '<button class="del" data-action="tlib-group-delete" data-group="'+esc(gname)+'" title="删除大标签">&times;</button>'+
+          '</span>'
+        : '<span class="tlib-hint">二级标签</span>')+
+      '</div>';
+    if(list.length===0){
+      secHtml+='<div class="tlib-gempty">这个大标签下还没有二级标签，点右上「+ 标签」添加</div></div>';
+      continue;
+    }
+    secHtml+='<div class="tlib-chips">';
     for(var j=0;j<list.length;j++){
       var st=list[j];
       var sc=counts.secondary[st]||0;
@@ -1753,6 +1850,18 @@ function renderTagLibrary(){
   }
 
   document.getElementById('taglibStats').textContent='标签库 · 共 '+(primList.length+(anySec?countSecondaryTags():0))+' 个标签';
+}
+
+// 新增标签弹窗里的「所属大标签」下拉：动态包含自建大类
+function fillAddTagGroupSelect(preferGroup){
+  var sel=document.getElementById('addTagGroup');
+  if(!sel)return;
+  var html='';
+  SECONDARY_GROUP_NAMES.forEach(function(g){
+    html+='<option value="'+esc(g)+'">'+esc(g)+'类'+(isCustomGroup(g)?'（自建）':'')+'</option>';
+  });
+  sel.innerHTML=html;
+  if(preferGroup&&SECONDARY_GROUP_NAMES.indexOf(preferGroup)!==-1)sel.value=preferGroup;
 }
 
 function countSecondaryTags(){
@@ -1873,7 +1982,7 @@ function importJSON(file){
       var data=JSON.parse(e.target.result);
       var imp=[];
       if(Array.isArray(data))imp=data;
-      else if(data&&Array.isArray(data.items)){imp=data.items;if(data.settings)settings=data.settings;}
+      else if(data&&Array.isArray(data.items)){imp=data.items;if(data.settings){settings=data.settings;if(!settings.customSecondaryGroups)settings.customSecondaryGroups={};if(!settings.customSecondaryGroupNames)settings.customSecondaryGroupNames=[];syncSecondaryGroupNames();}}
       else{showToast('文件格式不正确');return;}
       var existingIds={};
       items.forEach(function(i){existingIds[i.id]=true;});
@@ -2219,6 +2328,32 @@ function setupEvents(){
           showToast('已删除标签: '+dtag);
         },'删除标签');
       }
+      else if(action==='tlib-group-add'){
+        var ag=btn.dataset.group||'';
+        document.getElementById('addTagName').value='';
+        document.getElementById('addTypeSecondary').click(); // 切到二级标签模式
+        fillAddTagGroupSelect(ag);
+        document.getElementById('addTagModal').classList.add('show');
+        document.getElementById('addTagName').focus();
+      }
+      else if(action==='tlib-group-rename'){
+        window.__openGroupModal&&window.__openGroupModal(btn.dataset.group||'');
+      }
+      else if(action==='tlib-group-delete'){
+        var gdel=btn.dataset.group||'';
+        var gtags=getAllSecondaryForGroup(gdel);
+        var warn='确定删除大标签「'+gdel+'」吗？';
+        warn+=gtags.length>0
+          ? '它下面的 '+gtags.length+' 个二级标签会一起删除，并从所有素材中移除（素材本身不会被删除）。'
+          : '它下面还没有二级标签。';
+        confirm(warn,function(){
+          var r=deleteSecondaryGroup(gdel);
+          if(!r.ok){showToast(r.msg);return;}
+          renderAll();
+          if(document.getElementById('taglibPrimary'))renderTagLibrary();
+          showToast('已删除大标签「'+gdel+'」');
+        },'删除大标签');
+      }
       return;
     }
 
@@ -2428,6 +2563,7 @@ function setupEvents(){
   var addType='primary';
   safeOn('addTagBtn','click',function(){
     addType='primary';
+    fillAddTagGroupSelect();
     document.getElementById('addTypePrimary').classList.add('active');
     document.getElementById('addTypeSecondary').classList.remove('active');
     document.getElementById('addTagGroup').style.display='none';
@@ -2473,6 +2609,58 @@ function setupEvents(){
     }
     document.getElementById('addTagModal').classList.remove('show');
     if(currentTab==='taglib')renderTagLibrary();
+  });
+
+  // Add secondary group (二级大标签)
+  var groupEditTarget=null; // null = 新增；字符串 = 重命名该大类
+  function openGroupModal(target){
+    groupEditTarget=target||null;
+    var t=document.getElementById('addGroupTitle');
+    var h=document.getElementById('addGroupHint');
+    var inp=document.getElementById('addGroupName');
+    var btn=document.getElementById('addGroupConfirm');
+    if(groupEditTarget){
+      if(t)t.textContent='重命名大标签';
+      if(h)h.textContent='改名不会影响已经打在素材上的二级标签，只改变分类的名字。';
+      if(btn)btn.textContent='保存';
+      if(inp)inp.value=groupEditTarget;
+    }else{
+      if(t)t.textContent='新增二级大标签';
+      if(h)h.textContent='大标签就是二级标签的分类，例如「心情」「场景」。建好后可在里面添加具体的二级标签。';
+      if(btn)btn.textContent='添加';
+      if(inp)inp.value='';
+    }
+    document.getElementById('addGroupModal').classList.add('show');
+    if(inp){inp.focus();inp.select();}
+  }
+  window.__openGroupModal=openGroupModal;
+  safeOn('addGroupBtn','click',function(){openGroupModal(null);});
+  safeOn('addGroupCancel','click',function(){
+    document.getElementById('addGroupModal').classList.remove('show');
+  });
+  safeOn('addGroupModal','click',function(e){
+    if(e.target===this)this.classList.remove('show');
+  });
+  safeOn('addGroupName','keydown',function(e){
+    if(e.key==='Enter')document.getElementById('addGroupConfirm').click();
+  });
+  safeOn('addGroupConfirm','click',function(){
+    var name=document.getElementById('addGroupName').value.trim();
+    var r;
+    if(groupEditTarget){
+      if(name===groupEditTarget){document.getElementById('addGroupModal').classList.remove('show');return;}
+      r=renameSecondaryGroup(groupEditTarget,name);
+      if(!r.ok){if(r.msg)showToast(r.msg);return;}
+      showToast('已重命名为「'+name+'」');
+    }else{
+      r=addSecondaryGroup(name);
+      if(!r.ok){showToast(r.msg);return;}
+      showToast('已新增大标签「'+name+'」');
+    }
+    document.getElementById('addGroupModal').classList.remove('show');
+    groupEditTarget=null;
+    renderAll();
+    if(document.getElementById('taglibPrimary'))renderTagLibrary();
   });
 
   // Rename dialog
@@ -2547,7 +2735,7 @@ function buildBatchTagEditor(){
   html+='<div class="tag-editor-chips" id="batchSecondaryChips">';
   SECONDARY_GROUP_NAMES.forEach(function(gname){
     var allTags=getAllSecondaryForGroup(gname);
-    if(allTags.length===0)return;
+    if(allTags.length===0&&!isCustomGroup(gname))return;
     html+='<div class="tag-group-row">';
     html+='<span class="tag-group-label">'+esc(gname)+'类</span>';
     html+='<div class="tag-editor-chips" data-role="secondary-group" data-group="'+esc(gname)+'">';
@@ -3083,10 +3271,12 @@ function init(){
   if(!settings.presets)settings.presets={};
   if(!settings.customPrimary)settings.customPrimary=[];
   if(!settings.customSecondaryGroups)settings.customSecondaryGroups={};
+  if(!settings.customSecondaryGroupNames)settings.customSecondaryGroupNames=[];
   if(!settings.lastUsedTags)settings.lastUsedTags=[];
   if(!settings.removedPresets)settings.removedPresets={primary:[],secondary:{}};
   if(!settings.removedPresets.primary)settings.removedPresets.primary=[];
   if(!settings.removedPresets.secondary)settings.removedPresets.secondary={};
+  syncSecondaryGroupNames();
   if(items.length===0&&!localStorage.getItem(INITK)){
     items=getSampleData();sv();localStorage.setItem(INITK,'1');
   }
