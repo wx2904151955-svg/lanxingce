@@ -46,9 +46,14 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 .capture-textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:16px;line-height:1.6;color:#7a656c;resize:vertical;min-height:54px;outline:none}
 .capture-textarea::placeholder{color:#b9a6ac}
 .capture-bar{display:flex;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #f3d9cf}
-.capture-tags{flex:1;border:1px solid #f3d9cf;border-radius:6px;padding:7px 10px;font-size:15px;background:#fff6f1;color:#7a656c;outline:none;min-height:38px}
-.capture-tags::placeholder{color:#b9a6ac;font-size:13px}
-.capture-tags:focus{border-color:#9d8189}
+.capture-tags-wrap{margin-top:8px}
+.capture-tags-label{font-size:12px;font-weight:600;color:#9d8189;margin-bottom:5px}
+.capture-tag-picker{max-height:128px;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:6px}
+.capture-tag-group-label{font-size:11px;font-weight:700;color:#b9a6ac;margin:2px 0}
+.capture-tag-row{display:flex;flex-wrap:wrap;gap:5px}
+.ct-chip{border:1px solid #f3d9cf;background:#FFF;color:#9d8189;padding:3px 10px;border-radius:12px;font-size:12px;cursor:pointer;min-height:28px;display:inline-flex;align-items:center;transition:all .12s;user-select:none}
+.ct-chip.selected{background:#9d8189;color:#fff;border-color:#9d8189;font-weight:600}
+.ct-chip:active{opacity:.75}
 .capture-btn{background:#9d8189;color:#fff;border:none;padding:0 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;min-height:38px;white-space:nowrap}
 .capture-btn:active{background:#9d8189}
 .capture-hint{text-align:center;font-size:11px;color:#b9a6ac;margin-top:6px}
@@ -306,7 +311,6 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
   .today-area{flex-direction:column}
   .header-btn span{display:none}
   .capture-bar{flex-direction:column}
-  .capture-tags{width:100%}
   .capture-btn{width:100%;min-height:42px}
   .batch-bar{bottom:10px;border-radius:8px}
 }
@@ -367,8 +371,11 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 <!-- Quick Capture -->
 <div class="capture-area">
   <textarea class="capture-textarea" id="captureInput" placeholder="想到什么写什么——一段描写、一句对白、一个灵感，保存后自动进入「待分类」，标签随时补" rows="2"></textarea>
+  <div class="capture-tags-wrap">
+    <div class="capture-tags-label">快速标签（点击选择，可多选）</div>
+    <div class="capture-tag-picker" id="captureTags"></div>
+  </div>
   <div class="capture-bar">
-    <input class="capture-tags" id="captureTags" placeholder="快速标签（可选，逗号分隔）" />
     <button class="capture-btn" id="captureBtn">存入待分类</button>
   </div>
   <div class="capture-img-row">
@@ -612,6 +619,7 @@ var MAX_IMAGES=9;
 var IMG_MAX_WIDTH=800;
 var IMG_QUALITY=0.82;
 var captureImages=[];
+var captureTagsSel=[];
 var editImgTargetId=null;
 
 // === Tag System ===
@@ -1011,10 +1019,43 @@ function confirm(msg,cb,title){
 function renderAll(){
   renderTodayArea();
   renderBackupReminder();
+  renderCaptureTagPicker();
   if(currentTab==='pending')renderPending();
   else if(currentTab==='library')renderLibrary();
   else if(currentTab==='search')renderSearch();
   else if(currentTab==='taglib')renderTagLibrary();
+}
+
+// 速记区的"快速标签"改为点选（不再输入）
+function renderCaptureTagPicker(){
+  var box=document.getElementById('captureTags');
+  if(!box)return;
+  var removedP=(settings.removedPresets&&settings.removedPresets.primary)||[];
+  var prim=PRIMARY_DEFAULTS.concat(settings.customPrimary).concat(getAllPrimaryTags());
+  prim=Array.from(new Set(prim)).filter(function(t){return removedP.indexOf(t)===-1;});
+  var html='';
+  if(prim.length>0){
+    html+='<div class="capture-tag-group-label">一级标签</div>';
+    html+='<div class="capture-tag-row">';
+    prim.forEach(function(t){
+      var sel=captureTagsSel.indexOf(t)!==-1;
+      html+='<span class="ct-chip'+(sel?' selected':'')+'" data-ctag="'+esc(t)+'">'+esc(t)+'</span>';
+    });
+    html+='</div>';
+  }
+  SECONDARY_GROUP_NAMES.forEach(function(gname){
+    var gt=getAllSecondaryForGroup(gname);
+    if(gt.length===0)return;
+    html+='<div class="capture-tag-group-label">'+esc(gname)+'类</div>';
+    html+='<div class="capture-tag-row">';
+    gt.forEach(function(t){
+      var sel=captureTagsSel.indexOf(t)!==-1;
+      html+='<span class="ct-chip'+(sel?' selected':'')+'" data-ctag="'+esc(t)+'">'+esc(t)+'</span>';
+    });
+    html+='</div>';
+  });
+  if(!html)html='<div style="font-size:12px;color:#b9a6ac">还没有可用标签，先写点素材或去标签库添加吧</div>';
+  box.innerHTML=html;
 }
 
 function renderTodayArea(){
@@ -1853,7 +1894,7 @@ function setupEvents(){
   safeOn('captureBtn','click',function(){
     var content=document.getElementById('captureInput').value.trim();
     if(!content&&captureImages.length===0){showToast('先写点什么吧');return;}
-    var tags=parseTags(document.getElementById('captureTags').value);
+    var tags=captureTagsSel.slice();
     var prim=[],sec=[];
     tags.forEach(function(t){
       if(PRIMARY_DEFAULTS.indexOf(t)!==-1||settings.customPrimary.indexOf(t)!==-1)prim.push(t);
@@ -1861,13 +1902,23 @@ function setupEvents(){
     });
     addItem(content,prim,sec,captureImages.slice());
     document.getElementById('captureInput').value='';
-    document.getElementById('captureTags').value='';
     captureImages=[];
+    captureTagsSel=[];
     renderCaptureImages();
+    renderCaptureTagPicker();
     localStorage.removeItem('wb_novel4_draft');
     if(currentTab!=='pending')switchTab('pending');
     else renderAll();
     showToast('已存入待分类');
+  });
+  safeOn('captureTags','click',function(e){
+    var chip=e.target.closest('.ct-chip');
+    if(!chip)return;
+    var t=chip.getAttribute('data-ctag');
+    if(!t)return;
+    var i=captureTagsSel.indexOf(t);
+    if(i===-1)captureTagsSel.push(t);else captureTagsSel.splice(i,1);
+    chip.classList.toggle('selected');
   });
   safeOn('captureInput','keydown',function(e){
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();document.getElementById('captureBtn').click();}
