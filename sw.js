@@ -1,5 +1,5 @@
 // 揽星册 service worker —— 离线打开 + 后台自动同步（断网改、联网自动推云端）
-const CACHE = 'lanxingce-v9';
+const CACHE = 'lanxingce-v10';
 const CORE = [
   './',
   './index.html',
