@@ -32,6 +32,8 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 
 .today-area{display:flex;gap:8px;margin:6px 0}
 .today-card{flex:1;background:#FFF;border:1px solid #f3d9cf;border-radius:10px;padding:12px;display:flex;align-items:center;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.today-card.untagged{cursor:pointer}
+.today-card.untagged:active{opacity:.85}
 .today-card.has-items{border-color:#f4acb7;background:linear-gradient(135deg,#fff,#fff0e8)}
 .today-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .today-card.untagged .today-icon{background:#fdeef0;color:#d98c8c}
@@ -1993,7 +1995,12 @@ function setupEvents(){
   });
 
   // Today area buttons
-  safeOn('viewUntaggedBtn','click',function(){switchTab('pending');});
+  safeOn('untaggedCard','click',goToPending);
+  function goToPending(){
+    if(currentTab!=='pending')switchTab('pending');
+    var el=document.getElementById('panel-pending');
+    if(el)setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'start'});},90);
+  }
   safeOn('viewTodayBtn','click',function(){openTodayModal();});
   safeOn('todayModalClose','click',closeTodayModal);
   safeOn('todayModal','click',function(e){if(e.target===this)closeTodayModal();});
