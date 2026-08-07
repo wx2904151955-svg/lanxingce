@@ -1475,9 +1475,7 @@ function renderLibraryList(){
   stats.textContent='素材库 · '+filtered.length+' 条';
 
   var sb=document.getElementById('sortBtn');
-  var sortLabel=librarySort==='time'?'按时间':'按修改';
-  var sortArrow=librarySortDir==='asc'?'↑':'↓';
-  sb.textContent=sortLabel+' '+sortArrow;
+  sb.textContent=librarySort==='time'?'按时间 ↓':'按修改 ↓';
 
   var bm=batchMode.library;
   document.getElementById('libBatchToggleBtn').textContent=bm?'退出选择':'选择模式';
@@ -2222,12 +2220,10 @@ function setupEvents(){
     }
   });
 
-  // Sort button: cycle 按时间↓ → 按时间↑ → 按修改↓ → 按修改↑
+  // Sort button: toggle 按时间↓(创建时间新→旧) ↔ 按修改↓(修改时间新→旧)
   safeOn('sortBtn','click',function(){
-    if(librarySort==='time'&&librarySortDir==='desc'){librarySortDir='asc';}
-    else if(librarySort==='time'&&librarySortDir==='asc'){librarySort='modified';librarySortDir='desc';}
-    else if(librarySort==='modified'&&librarySortDir==='desc'){librarySortDir='asc';}
-    else{librarySort='time';librarySortDir='desc';}
+    librarySort=librarySort==='time'?'modified':'time';
+    librarySortDir='desc';
     libraryPage=1;
     renderLibrary();
   });
