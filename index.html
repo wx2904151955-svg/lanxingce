@@ -1323,12 +1323,19 @@ function renderLibrary(){
 
 function renderTagBrowser(){
   var body=document.getElementById('tagBrowserBody');
-  var counts=getTagCounts();
-  var allPrim=getAllPrimaryTags();
-  var allSec=getAllSecondaryTags();
+  // 分面收窄：标签区只展示"当前筛选结果里实际用到的标签"，方便逐级筛选
+  var pool=getFilteredItems();
+  var pCounts={},sCounts={},pMap={},sMap={};
+  pool.forEach(function(item){
+    item.primaryTags.forEach(function(t){pCounts[t]=(pCounts[t]||0)+1;pMap[t]=1;});
+    item.secondaryTags.forEach(function(t){sCounts[t]=(sCounts[t]||0)+1;sMap[t]=1;});
+  });
+  var counts={primary:pCounts,secondary:sCounts};
+  var allPrim=Object.keys(pMap).sort();
+  var allSec=Object.keys(sMap).sort();
 
   if(allPrim.length===0&&allSec.length===0){
-    body.innerHTML='<div style="font-size:12px;color:#b9a6ac;padding:4px 0">还没有标签，先去给素材打标签吧</div>';
+    body.innerHTML='<div style="font-size:12px;color:#b9a6ac;padding:4px 0">'+(pool.length===0?'当前筛选无匹配素材，点上方已选标签可清除':'还没有标签，先去给素材打标签吧')+'</div>';
     return;
   }
 
