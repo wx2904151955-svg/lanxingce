@@ -464,7 +464,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
   <div class="list-header">
     <span class="list-stats" id="libraryStats"></span>
     <div class="list-actions">
-      <button class="list-btn sort-btn" id="sortBtn" data-sort="time">按时间</button>
+      <button class="list-btn sort-btn" id="sortBtn" data-sort="time">按时间 ↓</button>
       <button class="list-btn" id="libBatchToggleBtn" data-target="library">选择模式</button>
     </div>
   </div>
@@ -681,6 +681,7 @@ var libraryFilter='all';
 var libraryPrimaryFilters=[];
 var librarySecondaryFilters=[];
 var librarySort='time';
+var librarySortDir='desc';
 var libraryPage=1;
 var LIBRARY_PAGE_SIZE=20;
 var batchMode={pending:false,library:false};
@@ -892,9 +893,9 @@ function getFilteredItems(){
     });
   }
   if(librarySort==='time'){
-    f.sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
-  }else{
-    f.sort(function(a,b){return(b.primaryTags.length+b.secondaryTags.length)-(a.primaryTags.length+a.secondaryTags.length);});
+    f.sort(function(a,b){var r=new Date(a.createdAt)-new Date(b.createdAt);return librarySortDir==='asc'?r:-r;});
+  }else if(librarySort==='modified'){
+    f.sort(function(a,b){var r=new Date(a.updatedAt)-new Date(b.updatedAt);return librarySortDir==='asc'?r:-r;});
   }
   return f;
 }
@@ -1473,7 +1474,9 @@ function renderLibraryList(){
   stats.textContent='素材库 · '+filtered.length+' 条';
 
   var sb=document.getElementById('sortBtn');
-  sb.textContent=librarySort==='time'?'按时间':'按标签数';
+  var sortLabel=librarySort==='time'?'按时间':'按修改';
+  var sortArrow=librarySortDir==='asc'?'↑':'↓';
+  sb.textContent=sortLabel+' '+sortArrow;
 
   var bm=batchMode.library;
   document.getElementById('libBatchToggleBtn').textContent=bm?'退出选择':'选择模式';
@@ -2035,6 +2038,7 @@ function setupEvents(){
     }
     libraryFilter='all';
     librarySort='time';
+    librarySortDir='desc';
     libraryPage=1;
     renderLibrary();
   });
@@ -2149,6 +2153,7 @@ function setupEvents(){
         var ti=arr.indexOf(ttag);
         if(ti===-1)arr.push(ttag);else arr.splice(ti,1);
         librarySort='time';
+        librarySortDir='desc';
         libraryPage=1;
         switchTab('library');
       }
@@ -2216,9 +2221,12 @@ function setupEvents(){
     }
   });
 
-  // Sort button
+  // Sort button: cycle 按时间↓ → 按时间↑ → 按修改↓ → 按修改↑
   safeOn('sortBtn','click',function(){
-    librarySort=librarySort==='time'?'tags':'time';
+    if(librarySort==='time'&&librarySortDir==='desc'){librarySortDir='asc';}
+    else if(librarySort==='time'&&librarySortDir==='asc'){librarySort='modified';librarySortDir='desc';}
+    else if(librarySort==='modified'&&librarySortDir==='desc'){librarySortDir='asc';}
+    else{librarySort='time';librarySortDir='desc';}
     libraryPage=1;
     renderLibrary();
   });
