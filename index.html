@@ -871,7 +871,8 @@ function getUntaggedItems(){
 }
 
 function getFilteredItems(){
-  var f=items.slice();
+  // 待分类素材（无任何标签）不进入素材库，只留在「待分类」标签页，也不参与排序
+  var f=items.filter(function(i){return !(i.primaryTags.length===0&&i.secondaryTags.length===0);});
   if(libraryFilter==='today'){
     f=f.filter(function(i){return isToday(i.createdAt);});
   }
