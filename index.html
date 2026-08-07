@@ -2465,6 +2465,53 @@ var cloudLastSync=0;
 var cloudDirty={};
 var cloudDeleteQ=[];
 var cloudFlushTimer=null;
+var cloudRetryTimer=null;
+
+// ===== 离线同步队列（与 sw.js 共享 IndexedDB：断网改、联网后自动推云端）=====
+var LANX_DB='lanxingce-sync';
+function idbOpen(){
+  return new Promise(function(res,rej){
+    var r=indexedDB.open(LANX_DB,1);
+    r.onupgradeneeded=function(){
+      var db=r.result;
+      if(!db.objectStoreNames.contains('session'))db.createObjectStore('session',{keyPath:'k'});
+      if(!db.objectStoreNames.contains('pending'))db.createObjectStore('pending',{keyPath:'id'});
+    };
+    r.onsuccess=function(){res(r.result);};
+    r.onerror=function(){rej(r.error);};
+  });
+}
+function idbTx(store,mode){
+  return idbOpen().then(function(db){return db.transaction(store,mode).objectStore(store);});
+}
+function idbPut(store,val){
+  return idbTx(store,'readwrite').then(function(s){return new Promise(function(res,rej){var r=s.put(val);r.onsuccess=function(){res();};r.onerror=function(){rej(r.error);};});});
+}
+function idbDel(store,k){
+  return idbTx(store,'readwrite').then(function(s){return new Promise(function(res,rej){var r=s.delete(k);r.onsuccess=function(){res();};r.onerror=function(){rej(r.error);};});});
+}
+function idbGetAll(store){
+  return idbTx(store,'readonly').then(function(s){return new Promise(function(res,rej){var r=s.getAll();r.onsuccess=function(){res(r.result||[]);};r.onerror=function(){rej(r.error);};});});
+}
+function idbGet(store,k){
+  return idbTx(store,'readonly').then(function(s){return new Promise(function(res,rej){var r=s.get(k);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){rej(r.error);};});});
+}
+function persistSession(){
+  if(!sbClient||!cloudUser)return;
+  var tok='';
+  try{var ss=sbClient.auth.getSession();if(ss&&ss.data&&ss.data.session)tok=ss.data.session.access_token;}catch(e){}
+  idbPut('session',{k:'auth',access_token:tok,uid:cloudUser.id,sb_url:SB_URL,sb_anon:SB_ANON,bucket:SB_BUCKET}).catch(function(){});
+}
+function clearCloudSession(){
+  idbDel('session','auth').catch(function(){});
+  idbOpen().then(function(db){return new Promise(function(res){var tx=db.transaction('pending','readwrite');tx.objectStore('pending').clear();tx.oncomplete=function(){res();};tx.onerror=function(){res();};});}).catch(function(){});
+}
+function registerBackgroundSync(){
+  if(!('serviceWorker' in navigator))return;
+  if(navigator.serviceWorker&&navigator.serviceWorker.ready){
+    navigator.serviceWorker.ready.then(function(reg){if(reg.sync)return reg.sync.register('lanxingce-sync');}).catch(function(){});
+  }
+}
 var cloudImgCache={};
 
 function setCloudBtnState(state){
@@ -2490,7 +2537,7 @@ function cloudStart(){
   sbClient.auth.getSession().then(function(res){
     var s=res&&res.data&&res.data.session;
     if(s&&s.user){
-      cloudUser=s.user;cloudOnline=true;setCloudBtnState('on');
+      cloudUser=s.user;cloudOnline=true;setCloudBtnState('on');persistSession();
       cloudPullThenPush();markAllDirty();
     }else{
       cloudUser=null;cloudOnline=false;setCloudBtnState('off');
@@ -2500,7 +2547,7 @@ function cloudStart(){
 
   sbClient.auth.onAuthStateChange(function(event,session){
     if(session&&session.user){
-      cloudUser=session.user;cloudOnline=true;setCloudBtnState('on');
+      cloudUser=session.user;cloudOnline=true;setCloudBtnState('on');persistSession();
       if(event==='SIGNED_IN'){cloudPullThenPush();markAllDirty();}
     }else{
       cloudUser=null;cloudOnline=false;setCloudBtnState('off');
@@ -2512,6 +2559,11 @@ function cloudStart(){
     if(!document.hidden&&cloudOnline)cloudPullThenPush();
   });
   window.addEventListener('online',function(){if(cloudOnline)cloudPullThenPush();});
+  setInterval(function(){
+    if(cloudOnline&&navigator.onLine!==false){
+      idbGetAll('pending').then(function(e){if(e&&e.length)drainPending();});
+    }
+  },20000);
 
   updateCloudModal();
 }
@@ -2523,7 +2575,7 @@ function cloudLogin(email,password){
   if(password.length<6){showToast('密码至少 6 位');return Promise.reject('weak');}
   setCloudStatus('登录中…');
   function afterLogin(){
-    cloudPullThenPush();markAllDirty();updateCloudModal();
+    persistSession();cloudPullThenPush();markAllDirty();updateCloudModal();
     showToast('登录成功，开始同步');
   }
   function cnErr(e){
@@ -2560,6 +2612,7 @@ function cloudLogout(){
   sbClient.auth.signOut().then(function(){
     cloudUser=null;cloudOnline=false;setCloudBtnState('off');
     cloudDirty={};cloudDeleteQ=[];
+    clearCloudSession();
     updateCloudModal();showToast('已退出登录');
   });
 }
@@ -2619,7 +2672,7 @@ function cloudPushItem(item){
       updated_at:item.updatedAt||new Date().toISOString()
     };
     return sbClient.from('fragments').upsert(row,{onConflict:'id'}).then(function(up){
-      if(up.error){console.error('推送失败',up.error);return;}
+      if(up.error){console.error('推送失败',up.error);return Promise.reject(up.error);}
       var resolved=paths.map(cloudPathToUrl);
       item.images=resolved;
       sv();
@@ -2661,7 +2714,7 @@ function cloudPullThenPush(){
     items=Object.keys(localMap).map(function(k){return localMap[k];});
     items.sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
     sv();renderAll();finishSync();
-    cloudFlush(true);
+    drainPending();
   }).catch(function(e){console.error(e);finishSync();});
 }
 function finishSync(){
@@ -2670,49 +2723,63 @@ function finishSync(){
   setCloudStatus('');
   updateCloudModal();
 }
-function cloudFlush(afterPull){
+function pushDelete(id){
+  return sbClient.from('fragments').delete().eq('id',id).eq('user_id',cloudUser.id).then(function(d){
+    if(d.error)return Promise.reject(d.error);
+    return sbClient.from('fragment_deletions').upsert({id:id,user_id:cloudUser.id,deleted_at:new Date().toISOString()});
+  }).then(function(u){if(u&&u.error)return Promise.reject(u.error);});
+}
+function drainPending(){
   if(!sbClient||!cloudUser)return;
-  if(cloudSyncing&&!afterPull)return;
-  var deletes=cloudDeleteQ.slice();cloudDeleteQ=[];
-  var dirtyIds=Object.keys(cloudDirty);cloudDirty={};
-  if(deletes.length===0&&dirtyIds.length===0){if(cloudSyncing)finishSync();return;}
-  cloudSyncing=true;setCloudStatus('同步中…');
-  var chain=Promise.resolve();
-  deletes.forEach(function(id){
-    chain=chain.then(function(){
-      return sbClient.from('fragments').delete().eq('id',id).eq('user_id',cloudUser.id).then(function(){
-        return sbClient.from('fragment_deletions').upsert({id:id,user_id:cloudUser.id,deleted_at:new Date().toISOString()});
-      }).catch(function(e){console.error(e);});
+  if(cloudSyncing)return;
+  idbGetAll('pending').then(function(entries){
+    if(!entries||!entries.length){finishSync();return;}
+    entries.sort(function(a,b){return (a.kind==='delete'?1:0)-(b.kind==='delete'?1:0);});
+    cloudSyncing=true;setCloudStatus('同步中…');
+    var chain=Promise.resolve();
+    var anyFail=false;
+    entries.forEach(function(entry){
+      chain=chain.then(function(){
+        if(entry.kind==='delete'){
+          return pushDelete(entry.id).then(function(){return idbDel('pending',entry.id);}).catch(function(e){console.error('删除推送失败',e);anyFail=true;});
+        }
+        var it=findItem(entry.id)||entry.item;
+        if(!it)return idbDel('pending',entry.id);
+        return cloudPushItem(it).then(function(){return idbDel('pending',entry.id);}).catch(function(e){console.error('推送失败',e);anyFail=true;});
+      });
     });
-  });
-  dirtyIds.forEach(function(id){
-    chain=chain.then(function(){
-      var it=findItem(id);
-      if(!it)return Promise.resolve();
-      return cloudPushItem(it);
-    });
-  });
-  chain.then(function(){finishSync();}).catch(function(){finishSync();});
+    chain.then(function(){
+      finishSync();
+      if(anyFail&&navigator.onLine!==false){if(cloudRetryTimer)clearTimeout(cloudRetryTimer);cloudRetryTimer=setTimeout(drainPending,15000);}
+    }).catch(function(){finishSync();});
+  }).catch(function(){finishSync();});
 }
 function markDirty(id){
   if(!id)return;
   cloudDirty[id]=true;
+  var it=findItem(id);
+  if(it)idbPut('pending',{id:id,kind:'upsert',item:JSON.parse(JSON.stringify(it))}).catch(function(){});
   scheduleFlush();
 }
 function markDelete(id){
   if(!id)return;
   cloudDeleteQ.push(id);
   delete cloudDirty[id];
+  idbPut('pending',{id:id,kind:'delete'}).catch(function(){});
   scheduleFlush();
 }
 function markAllDirty(){
-  items.forEach(function(it){cloudDirty[it.id]=true;});
+  items.forEach(function(it){
+    cloudDirty[it.id]=true;
+    idbPut('pending',{id:it.id,kind:'upsert',item:JSON.parse(JSON.stringify(it))}).catch(function(){});
+  });
   scheduleFlush();
 }
 function scheduleFlush(){
   if(!sbClient||!cloudUser)return;
   if(cloudFlushTimer)clearTimeout(cloudFlushTimer);
-  cloudFlushTimer=setTimeout(function(){cloudFlush(false);},700);
+  cloudFlushTimer=setTimeout(function(){drainPending();},700);
+  if(navigator.onLine===false)registerBackgroundSync();
 }
 function cloudWipeAll(){
   if(!sbClient||!cloudUser)return Promise.resolve();
@@ -2790,6 +2857,11 @@ else init();
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('./sw.js').catch(function(e){console.warn('SW 注册失败',e);});
+  });
+  // 接收后台同步完成通知，刷新本地数据
+  navigator.serviceWorker.addEventListener('message',function(e){
+    var d=e.data||{};
+    if(d.type==='LANX_SYNC_DONE'&&typeof cloudPullThenPush==='function')cloudPullThenPush();
   });
 }
 </script>
