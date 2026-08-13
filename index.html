@@ -215,8 +215,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 
 /* 素材备注（便签风格） */
 .card-note{background:#fffdf2;border:1px solid #f0e6c0;border-left:3px solid #f2c94c;border-radius:8px;padding:8px 10px;margin:8px 0 0;font-size:13px;color:#6b5d2e}
-.card-note-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
-.card-note-label{font-weight:600;color:#9a8326;font-size:12px}
+.card-note-head{display:flex;align-items:center;justify-content:flex-end;margin-bottom:2px}
 .card-note-edit{border:none;background:transparent;color:#b9a6ac;font-size:11px;cursor:pointer;padding:0 0 0 8px;min-height:auto}
 .card-note-edit:active{color:#7a656c}
 .card-note-text{line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:8em;overflow:auto}
@@ -1312,7 +1311,6 @@ function renderNoteBlock(item){
   var noteHtml=esc(note).replace(/\n/g,'<br/>');
   return '<div class="card-note" id="note-'+item.id+'">'+
     '<div class="card-note-head">'+
-      '<span class="card-note-label">💡 备注</span>'+
       '<button class="card-note-edit" data-action="edit-note" data-id="'+item.id+'">编辑</button>'+
     '</div>'+
     '<div class="card-note-text" id="noteText-'+item.id+'">'+noteHtml+'</div>'+
