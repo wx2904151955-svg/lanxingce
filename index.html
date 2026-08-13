@@ -25,6 +25,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 .header-btn.cloud-off{opacity:.92}
 .cloud-dot{width:7px;height:7px;border-radius:50%;background:#c9b8be;display:inline-block;margin-right:3px;flex-shrink:0}
 .header-btn.cloud-on .cloud-dot{background:#3fae7a}
+.header-btn.active{background:#fff0ea;border-color:#f0b9a6;color:#c06a4f}
 
 .backup-reminder{background:#fff0e8;border:1px solid #D4A574;border-radius:8px;padding:9px 12px;margin:6px 0;display:flex;align-items:center;gap:7px;font-size:12px;color:#f4acb7}
 .backup-reminder button{margin-left:auto;border:none;background:#f4acb7;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer}
@@ -396,6 +397,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
     <button class="header-btn cloud-off" id="cloudBtn"><span class="cloud-dot" id="cloudDot"></span>云同步</button>
     <button class="header-btn" id="exportBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>导出</span></button>
     <button class="header-btn" id="importBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>导入</span></button>
+    <button class="header-btn" id="fullscreenBtn" title="全屏 / 退出全屏"><svg id="fsIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg><span id="fsLabel">全屏</span></button>
   </div>
 </div>
 
@@ -2052,6 +2054,34 @@ function toggleBatchItem(target,id,checked){
 }
 
 // === Export/Import ===
+function toggleFullscreen(){
+  var fsEl=document.fullscreenElement||document.webkitFullscreenElement;
+  if(!fsEl){
+    var el=document.documentElement;
+    var req=el.requestFullscreen||el.webkitRequestFullscreen;
+    if(req){
+      var p=req.call(el);
+      if(p&&p.catch)p.catch(function(){showToast('当前浏览器不支持全屏');});
+    } else {
+      showToast('当前浏览器不支持全屏');
+    }
+  } else {
+    var ex=document.exitFullscreen||document.webkitExitFullscreen;
+    if(ex)ex.call(document);
+  }
+}
+function updateFsBtn(){
+  var on=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  var b=document.getElementById('fullscreenBtn');
+  if(b)b.classList.toggle('active',on);
+  var icon=document.getElementById('fsIcon');
+  var label=document.getElementById('fsLabel');
+  if(icon)icon.innerHTML=on
+    ? '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m8-5h3a2 2 0 0 1 2 2v3"/>'
+    : '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>';
+  if(label)label.textContent=on?'退出':'全屏';
+}
+
 function exportJSON(){
   var data=JSON.stringify({version:5,exportDate:new Date().toISOString(),items:items,settings:settings},null,2);
   var blob=new Blob([data],{type:'application/json'});
@@ -2061,8 +2091,7 @@ function exportJSON(){
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
   showToast('已导出 '+items.length+' 条素材');
 }
-function importJSON(file){
-  var reader=new FileReader();
+function importJSON(file){  var reader=new FileReader();
   reader.onload=function(e){
     try{
       var data=JSON.parse(e.target.result);
@@ -2633,6 +2662,11 @@ function setupEvents(){
   safeOn('importFile','change',function(e){
     if(e.target.files[0])importJSON(e.target.files[0]);e.target.value='';
   });
+
+  // Fullscreen toggle
+  safeOn('fullscreenBtn','click',toggleFullscreen);
+  document.addEventListener('fullscreenchange',updateFsBtn);
+  document.addEventListener('webkitfullscreenchange',updateFsBtn);
 
   // Cloud sync
   safeOn('cloudBtn','click',openCloudModal);
