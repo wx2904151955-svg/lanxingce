@@ -674,10 +674,6 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 <!-- 素材备注弹窗 -->
 <div class="modal-overlay" id="noteModal">
   <div class="modal" style="max-width:460px">
-    <div class="modal-head">
-      <h3>✎ 素材备注</h3>
-      <button class="modal-btn modal-cancel" id="noteClose" style="flex:0 0 auto;min-height:auto;padding:5px 12px">×</button>
-    </div>
     <div class="note-source" id="noteSource"></div>
     <textarea class="note-textarea" id="noteText" placeholder="写下这条素材延伸出的灵感、关联、待写的情节……（可多行）"></textarea>
     <div class="modal-actions">
@@ -2795,7 +2791,6 @@ function setupEvents(){
   });
 
   // Note (remark) modal
-  safeOn('noteClose','click',closeNoteModal);
   safeOn('noteCancel','click',closeNoteModal);
   safeOn('noteSave','click',saveNote);
   safeOn('noteClear','click',clearNote);
