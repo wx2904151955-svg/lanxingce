@@ -2308,21 +2308,22 @@ function setupEvents(){
     else renderAll();
     showToast('已存入待分类');
   });
-  // 粘贴链接到素材框时，自动提取为来源链接，无需手动粘贴到链接框
+  // 粘贴到素材框时自动提取链接：纯链接→填入来源框并清空主框；文字+链接→提取来源框、主框只留文字
   safeOn('captureInput','paste',function(){
     setTimeout(function(){
       var ta=document.getElementById('captureInput');
-      var val=(ta.value||'').trim();
+      var raw=(ta.value||'');
+      var val=raw.trim();
       if(!val)return;
-      // 整段就是一个 URL：自动填入来源框并清空主框
-      if(/^https?:\/\/[^\s]+$/i.test(val)){
-        var linkBox=document.getElementById('captureLink');
-        if(!linkBox.value.trim()){
-          linkBox.value=val;
-          ta.value='';
-          showToast('已自动提取来源链接');
-        }
-      }
+      var m=val.match(/https?:\/\/[^\s]+/i);
+      if(!m)return;
+      var url=m[0].replace(/[.,;:!?。，；：！？、)\]}'"”’]+$/,''); // 去掉尾随标点/引号
+      var linkBox=document.getElementById('captureLink');
+      if(linkBox.value.trim())return; // 已有来源则不覆盖
+      linkBox.value=url;
+      var rest=val.replace(m[0],'').replace(/\s{2,}/g,' ').trim();
+      ta.value=rest;
+      showToast('已自动提取来源链接');
     },0);
   });
   safeOn('captureTags','click',function(e){
