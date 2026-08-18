@@ -2287,9 +2287,9 @@ function setupEvents(){
   // Capture
   safeOn('captureBtn','click',function(){
     var content=document.getElementById('captureInput').value.trim();
-    if(!content&&captureImages.length===0){showToast('先写点什么吧');return;}
     var linkVal=document.getElementById('captureLink').value;
     if(!linkVal&&/^https?:\/\//i.test(content))linkVal=content; // 内容本身就是链接时自动识别为来源
+    if(!content&&captureImages.length===0&&!linkVal){showToast('先写点什么吧');return;}
     var tags=captureTagsSel.slice();
     var prim=[],sec=[];
     tags.forEach(function(t){
@@ -2307,6 +2307,23 @@ function setupEvents(){
     if(currentTab!=='pending')switchTab('pending');
     else renderAll();
     showToast('已存入待分类');
+  });
+  // 粘贴链接到素材框时，自动提取为来源链接，无需手动粘贴到链接框
+  safeOn('captureInput','paste',function(){
+    setTimeout(function(){
+      var ta=document.getElementById('captureInput');
+      var val=(ta.value||'').trim();
+      if(!val)return;
+      // 整段就是一个 URL：自动填入来源框并清空主框
+      if(/^https?:\/\/[^\s]+$/i.test(val)){
+        var linkBox=document.getElementById('captureLink');
+        if(!linkBox.value.trim()){
+          linkBox.value=val;
+          ta.value='';
+          showToast('已自动提取来源链接');
+        }
+      }
+    },0);
   });
   safeOn('captureTags','click',function(e){
     var chip=e.target.closest('.ct-chip');
