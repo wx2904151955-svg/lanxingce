@@ -2308,23 +2308,27 @@ function setupEvents(){
     else renderAll();
     showToast('已存入待分类');
   });
-  // 粘贴到素材框时自动提取链接：纯链接→填入来源框并清空主框；文字+链接→提取来源框、主框只留文字
-  safeOn('captureInput','paste',function(){
-    setTimeout(function(){
+  // 粘贴到素材框时自动提取链接（兼容纯链接 / 文字+链接 / www.开头；直接读剪贴板，时机更稳）
+  safeOn('captureInput','paste',function(e){
+    var clip='';
+    try{ if(e&&e.clipboardData&&e.clipboardData.getData)clip=e.clipboardData.getData('text/plain')||''; }catch(_){}
+    var apply=function(txt){
       var ta=document.getElementById('captureInput');
-      var raw=(ta.value||'');
-      var val=raw.trim();
+      var val=(txt!=null?txt:ta.value||'').trim();
       if(!val)return;
-      var m=val.match(/https?:\/\/[^\s]+/i);
+      var m=val.match(/https?:\/\/[^\s，。、；：！？）】」'"”’]+|www\.[a-z0-9-]+(\.[a-z0-9-]+)+[^\s，。、；：！？）】」'"”’]*/i);
       if(!m)return;
-      var url=m[0].replace(/[.,;:!?。，；：！？、)\]}'"”’]+$/,''); // 去掉尾随标点/引号
+      var raw=m[0];
+      var clean=raw.replace(/[.,;:!?)\]}'"]+$/,''); // 去掉尾随半角标点/引号
+      if(/^www\./i.test(clean))clean='https://'+clean; // www. 开头自动补协议
       var linkBox=document.getElementById('captureLink');
       if(linkBox.value.trim())return; // 已有来源则不覆盖
-      linkBox.value=url;
-      var rest=val.replace(m[0],'').replace(/\s{2,}/g,' ').trim();
+      linkBox.value=clean;
+      var rest=val.replace(raw,'').replace(/\s{2,}/g,' ').trim();
       ta.value=rest;
       showToast('已自动提取来源链接');
-    },0);
+    };
+    if(clip)apply(clip); else setTimeout(function(){apply();},0);
   });
   safeOn('captureTags','click',function(e){
     var chip=e.target.closest('.ct-chip');
