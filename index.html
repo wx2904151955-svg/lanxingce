@@ -400,7 +400,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 <div class="app-header">
   <div class="app-title">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9d8189" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>
-    揽星册 <span id="appVer" class="app-ver"></span>
+    揽星册
   </div>
   <div class="header-actions">
     <button class="header-btn cloud-off" id="cloudBtn"><span class="cloud-dot" id="cloudDot"></span>云同步</button>
@@ -614,6 +614,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
     <button class="data-btn" id="manageTagsBtn">打开标签库</button>
   </div>
   <div class="data-hint">数据保存在浏览器本地，不会上传服务器。登录「云同步」后，素材（内容、标签、图片）会备份到你自己的 Supabase 账户并在多设备间同步。建议仍定期导出备份。</div>
+  <div style="margin-top:8px;font-size:12px;color:#b9a6ac">当前版本：<span id="appVer" style="color:#9d8189;font-weight:600"></span></div>
 </div>
 
 </div><!-- /container -->
@@ -758,7 +759,7 @@ var SETK='wb_novel4_settings';
 var INITK='wb_novel4_init';
 var BKDK='wb_novel4_backup_dismissed';
 var DELETEDK='wb_novel4_deleted';
-var APP_VERSION='v30';
+var APP_VERSION='v31';
 
 // === Image attach ===
 var MAX_IMAGES=9;
@@ -2319,27 +2320,33 @@ function setupEvents(){
     else renderAll();
     showToast('已存入待分类');
   });
-  // 粘贴到素材框时自动提取链接（兼容纯链接 / 文字+链接 / www.开头；直接读剪贴板，时机更稳）
-  safeOn('captureInput','paste',function(e){
-    var clip='';
-    try{ if(e&&e.clipboardData&&e.clipboardData.getData)clip=e.clipboardData.getData('text/plain')||''; }catch(_){}
-    var apply=function(txt){
-      var ta=document.getElementById('captureInput');
-      var val=(txt!=null?txt:ta.value||'').trim();
-      if(!val)return;
-      var m=val.match(/https?:\/\/[^\s，。、；：！？）】」'"”’]+|www\.[a-z0-9-]+(\.[a-z0-9-]+)+[^\s，。、；：！？）】」'"”’]*/i);
-      if(!m)return;
-      var raw=m[0];
-      var clean=raw.replace(/[.,;:!?)\]}'"]+$/,''); // 去掉尾随半角标点/引号
-      if(/^www\./i.test(clean))clean='https://'+clean; // www. 开头自动补协议
-      var linkBox=document.getElementById('captureLink');
-      if(linkBox.value.trim())return; // 已有来源则不覆盖
-      linkBox.value=clean;
-      var rest=val.replace(raw,'').replace(/\s{2,}/g,' ').trim();
-      ta.value=rest;
-      showToast('已自动提取来源链接');
-    };
-    if(clip)apply(clip); else setTimeout(function(){apply();},0);
+  // 粘贴到素材框时自动提取链接（纯链接 / 文字+链接 / www.开头）
+  // 桌面与移动端兼容：不依赖 clipboardData（移动端常取不到），改为监听 input 的 insertFromPaste，
+  // 在原生粘贴完成、value 已提交到输入框后再读取，确保可靠提取且不破坏已有文字
+  function extractLinkFromCapture(){
+    var ta=document.getElementById('captureInput');
+    var val=(ta.value||'').trim();
+    if(!val)return;
+    var m=val.match(/https?:\/\/[^\s，。、；：！？）】」'"”’]+|www\.[a-z0-9-]+(\.[a-z0-9-]+)+[^\s，。、；：！？）】」'"”’]*/i);
+    if(!m)return;
+    var raw=m[0];
+    var clean=raw.replace(/[.,;:!?)\]}'"]+$/,''); // 去掉尾随半角标点/引号
+    if(/^www\./i.test(clean))clean='https://'+clean; // www. 开头自动补协议
+    var linkBox=document.getElementById('captureLink');
+    if(linkBox.value.trim())return; // 已有来源则不覆盖
+    linkBox.value=clean;
+    var rest=val.replace(raw,'').replace(/\s{2,}/g,' ').trim();
+    ta.value=rest;
+    showToast('已自动提取来源链接');
+  }
+  safeOn('captureInput','paste',function(){
+    // 移动端兜底：部分浏览器 paste 事件取不到剪贴板内容，等原生粘贴提交后再读输入框
+    setTimeout(function(){extractLinkFromCapture();},90);
+  });
+  safeOn('captureInput','input',function(e){
+    if(e&&e.inputType==='insertFromPaste'){
+      setTimeout(function(){extractLinkFromCapture();},40);
+    }
   });
   safeOn('captureTags','click',function(e){
     var chip=e.target.closest('.ct-chip');
