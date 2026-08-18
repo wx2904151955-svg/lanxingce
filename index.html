@@ -17,6 +17,7 @@ svg.icon-md{width:18px;height:18px;flex-shrink:0}
 svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 
 .app-header{display:flex;align-items:center;justify-content:space-between;padding:14px 0 8px}
+.app-ver{font-size:11px;color:#c0a9ad;margin-left:6px;font-weight:400;vertical-align:middle}
 .app-title{font-size:21px;font-weight:700;color:#9d8189;display:flex;align-items:center;gap:7px}
 .header-actions{display:flex;gap:5px}
 .header-btn{border:1px solid #f3d9cf;background:#FFF;color:#9d8189;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;min-height:34px;transition:all .15s}
@@ -399,7 +400,7 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 <div class="app-header">
   <div class="app-title">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9d8189" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>
-    揽星册
+    揽星册 <span id="appVer" class="app-ver"></span>
   </div>
   <div class="header-actions">
     <button class="header-btn cloud-off" id="cloudBtn"><span class="cloud-dot" id="cloudDot"></span>云同步</button>
@@ -756,6 +757,8 @@ var SK='wb_novel4_items';
 var SETK='wb_novel4_settings';
 var INITK='wb_novel4_init';
 var BKDK='wb_novel4_backup_dismissed';
+var DELETEDK='wb_novel4_deleted';
+var APP_VERSION='v30';
 
 // === Image attach ===
 var MAX_IMAGES=9;
@@ -789,6 +792,7 @@ var DEFAULT_PRESETS = {
 
 // === State ===
 var items=[];
+var localDeleted={};
 var settings={presets:{},customPrimary:[],customSecondaryGroups:{},customSecondaryGroupNames:[],lastUsedTags:[],removedPresets:{primary:[],secondary:{}}};
 var currentTab='pending';
 var calendarView=new Date();
@@ -961,6 +965,12 @@ function deleteSecondaryGroup(name){
 function ld(){
   try{var d=localStorage.getItem(SK);return d?JSON.parse(d):[];}catch(e){return[];}
 }
+function ldDeleted(){
+  try{var d=localStorage.getItem(DELETEDK);return d?JSON.parse(d):{};}catch(e){return{};}
+}
+function svDeleted(){
+  try{localStorage.setItem(DELETEDK,JSON.stringify(localDeleted));}catch(e){}
+}
 function sv(){
   try{localStorage.setItem(SK,JSON.stringify(items));}catch(e){showToast('存储空间不足，请导出后清理');}
 }
@@ -977,7 +987,7 @@ function addItem(content,prim,sec,imgs,link){
   items.unshift({id:id,content:content.trim(),primaryTags:prim||[],secondaryTags:sec||[],images:imgs||[],note:'',link:link||'',createdAt:now,updatedAt:now});
   sv();markDirty(id);
 }
-function deleteItem(id){items=items.filter(function(i){return i.id!==id;});sv();markDelete(id);}
+function deleteItem(id){items=items.filter(function(i){return i.id!==id;});localDeleted[id]=true;svDeleted();sv();markDelete(id);}
 function findItem(id){return items.find(function(i){return i.id===id;});}
 function updateTags(id,prim,sec){
   var item=findItem(id);
@@ -1002,7 +1012,8 @@ function updateContent(id,content){
 }
 function deleteItems(ids){
   var set={};
-  ids.forEach(function(id){set[id]=true;});
+  ids.forEach(function(id){set[id]=true;localDeleted[id]=true;});
+  svDeleted();
   items=items.filter(function(i){return !set[i.id];});
   sv();
   ids.forEach(function(id){markDelete(id);});
@@ -3315,6 +3326,7 @@ function cloudPullThenPush(){
       }
     });
     Object.keys(delSet).forEach(function(id){if(localMap[id])delete localMap[id];});
+    Object.keys(localDeleted).forEach(function(id){if(localMap[id])delete localMap[id];}); // 本地已删：无论云端是否同步成功，都不让素材复活
     items=Object.keys(localMap).map(function(k){return localMap[k];});
     items.sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});
     sv();renderAll();finishSync();
@@ -3516,6 +3528,7 @@ function updateCloudModal(){
 // === Init ===
 function init(){
   items=ld();
+  localDeleted=ldDeleted();
   settings=ldSettings();
   if(!settings.presets)settings.presets={};
   if(!settings.customPrimary)settings.customPrimary=[];
@@ -3534,6 +3547,7 @@ function init(){
   var tb=document.getElementById('tagBrowser');
   if(tb)tb.classList.toggle('collapsed',tagBrowserCollapsed);
   setupEvents();renderAll();
+  var v=document.getElementById('appVer');if(v)v.textContent=APP_VERSION;
   cloudStart();
 }
 
