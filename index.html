@@ -759,7 +759,7 @@ var SETK='wb_novel4_settings';
 var INITK='wb_novel4_init';
 var BKDK='wb_novel4_backup_dismissed';
 var DELETEDK='wb_novel4_deleted';
-var APP_VERSION='v31';
+var APP_VERSION='v32';
 
 // === Image attach ===
 var MAX_IMAGES=9;
@@ -2321,8 +2321,10 @@ function setupEvents(){
     showToast('已存入待分类');
   });
   // 粘贴到素材框时自动提取链接（纯链接 / 文字+链接 / www.开头）
-  // 桌面与移动端兼容：不依赖 clipboardData（移动端常取不到），改为监听 input 的 insertFromPaste，
-  // 在原生粘贴完成、value 已提交到输入框后再读取，确保可靠提取且不破坏已有文字
+  // 跨平台兼容：不依赖 clipboardData，也不依赖 inputType（安卓自带浏览器常不报告 insertFromPaste）。
+  // 改用最稳妥的信号——输入框内容一次性跳变多个字符（粘贴特征是整段插入，打字每次只插入 1 个字符），
+  // 或检测到「新出现的链接」即触发提取。原生粘贴提交后再读取，确保可靠且不破坏已有文字。
+  var lastCaptureValue='';
   function extractLinkFromCapture(){
     var ta=document.getElementById('captureInput');
     var val=(ta.value||'').trim();
@@ -2337,16 +2339,23 @@ function setupEvents(){
     linkBox.value=clean;
     var rest=val.replace(raw,'').replace(/\s{2,}/g,' ').trim();
     ta.value=rest;
+    lastCaptureValue=rest;
     showToast('已自动提取来源链接');
   }
+  var URL_RE=/https?:\/\/[^\s，。、；：！？）】」'"”’]+|www\.[a-z0-9-]+(\.[a-z0-9-]+)+[^\s，。、；：！？）】」'"”’]*/i;
   safeOn('captureInput','paste',function(){
-    // 移动端兜底：部分浏览器 paste 事件取不到剪贴板内容，等原生粘贴提交后再读输入框
+    // 兜底：部分浏览器 paste 事件可取不到剪贴板，等原生粘贴提交后再读输入框
     setTimeout(function(){extractLinkFromCapture();},90);
   });
   safeOn('captureInput','input',function(e){
-    if(e&&e.inputType==='insertFromPaste'){
-      setTimeout(function(){extractLinkFromCapture();},40);
-    }
+    var ta=document.getElementById('captureInput');
+    var nv=ta.value||'';
+    var added=nv.length-(lastCaptureValue.length||0);
+    var hasNewUrl=URL_RE.test(nv)&&!URL_RE.test(lastCaptureValue);
+    lastCaptureValue=nv;
+    // 粘贴特征：一次性插入多个字符，或 inputType 标记粘贴，或出现了新的链接
+    var isPaste=(e&&e.inputType==='insertFromPaste')||added>2||hasNewUrl;
+    if(isPaste)setTimeout(function(){extractLinkFromCapture();},40);
   });
   safeOn('captureTags','click',function(e){
     var chip=e.target.closest('.ct-chip');
