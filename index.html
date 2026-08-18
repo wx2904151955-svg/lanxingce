@@ -60,6 +60,10 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 .capture-btn{background:#9d8189;color:#fff;border:none;padding:0 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;min-height:38px;white-space:nowrap}
 .capture-btn:active{background:#9d8189}
 .capture-hint{text-align:center;font-size:11px;color:#b9a6ac;margin-top:6px}
+.capture-link-row{margin-top:8px}
+.capture-link-input{width:100%;box-sizing:border-box;border:1px solid #f3d9cf;border-radius:8px;background:#fff6f1;font-family:inherit;font-size:14px;color:#7a656c;padding:8px 10px;outline:none}
+.capture-link-input::placeholder{color:#c3b0b6}
+.capture-link-input:focus{border-color:#e0b8c8;background:#fff}
 
 .tabs{display:flex;gap:0;margin:10px 0 0;background:#FFF;border:1px solid #f3d9cf;border-radius:8px;overflow:hidden}
 .tab{flex:1;border:none;background:transparent;color:#9d8189;padding:8px 0;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .15s;border-bottom:2px solid transparent;min-height:44px}
@@ -218,11 +222,16 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
 .card-note-head{display:flex;align-items:center;justify-content:flex-end;margin-bottom:2px}
 .card-note-edit{border:none;background:transparent;color:#b9a6ac;font-size:11px;cursor:pointer;padding:0 0 0 8px;min-height:auto}
 .card-note-edit:active{color:#7a656c}
+.card-action-btn.link-btn{color:#5b8def}
+.card-action-btn.link-btn:active{background:#eaf1fd;color:#3a6fd0}
+.card-link{display:inline-flex;align-items:center;gap:4px;background:#eaf1fd;border:1px solid #cfe0fb;border-radius:14px;padding:4px 11px;margin:8px 0 0;font-size:12px;color:#3a6fd0;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-link:active{background:#dbe8fb}
 .card-note-text{line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:8em;overflow:auto}
 .note-source{font-size:12px;color:#9d8189;background:#fff6f1;border:1px solid #f3d9cf;border-radius:6px;padding:6px 8px;margin-bottom:10px;line-height:1.5;max-height:60px;overflow:auto;word-break:break-word}
 .note-textarea{width:100%;min-height:150px;box-sizing:border-box;border:1px solid #f3d9cf;border-radius:8px;padding:10px;font-size:14px;line-height:1.65;resize:vertical;font-family:inherit;color:#6b5d2e;background:#fffdf7}
 .note-textarea:focus{outline:none;border-color:#f2c94c}
 .today-card-note{margin-top:8px;background:#fffdf2;border:1px solid #f0e6c0;border-left:3px solid #f2c94c;border-radius:6px;padding:6px 8px;font-size:12px;color:#6b5d2e;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.today-card-link{display:inline-flex;align-items:center;gap:4px;margin-top:7px;background:#eaf1fd;border:1px solid #cfe0fb;border-radius:14px;padding:3px 10px;font-size:12px;color:#3a6fd0;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .edit-textarea{width:100%;border:1px solid #9d8189;border-radius:6px;padding:6px 8px;font-family:inherit;font-size:15px;line-height:1.6;color:#7a656c;resize:vertical;min-height:50px;outline:none;background:#fff6f1}
 .edit-actions{display:flex;gap:5px;margin-top:6px}
@@ -440,6 +449,9 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
   <div class="capture-tags-wrap">
     <div class="capture-tags-label">快速标签（点击选择，可多选）</div>
     <div class="capture-tag-picker" id="captureTags"></div>
+  </div>
+  <div class="capture-link-row">
+    <input class="capture-link-input" id="captureLink" type="url" placeholder="可选：来源链接（公共平台素材地址，保存后可一键跳转）" />
   </div>
   <div class="capture-bar">
     <button class="capture-btn" id="captureBtn">存入待分类</button>
@@ -680,6 +692,20 @@ svg.icon-lg{width:22px;height:22px;flex-shrink:0}
       <button class="modal-btn modal-cancel" id="noteClear" style="margin-right:auto;color:#d98c8c">清空</button>
       <button class="modal-btn modal-cancel" id="noteCancel">取消</button>
       <button class="modal-btn modal-confirm primary-confirm" id="noteSave">保存备注</button>
+    </div>
+  </div>
+</div>
+
+<!-- 素材链接弹窗 -->
+<div class="modal-overlay" id="linkModal">
+  <div class="modal" style="max-width:460px">
+    <div class="note-source" id="linkSource"></div>
+    <input class="link-input" id="linkInput" type="url" placeholder="粘贴公共平台素材的来源链接，如 https://..." />
+    <div class="modal-actions">
+      <button class="modal-btn modal-cancel" id="linkOpen" style="margin-right:auto;color:#5b8def">↗ 打开链接</button>
+      <button class="modal-btn modal-cancel" id="linkClear" style="color:#d98c8c">清空</button>
+      <button class="modal-btn modal-cancel" id="linkCancel">取消</button>
+      <button class="modal-btn modal-confirm primary-confirm" id="linkSave">保存</button>
     </div>
   </div>
 </div>
@@ -945,10 +971,10 @@ function svSettings(){
   try{localStorage.setItem(SETK,JSON.stringify(settings));}catch(e){}
 }
 function genId(){return 'm_'+Date.now()+'_'+Math.random().toString(36).substr(2,6);}
-function addItem(content,prim,sec,imgs){
+function addItem(content,prim,sec,imgs,link){
   var now=new Date().toISOString();
   var id=genId();
-  items.unshift({id:id,content:content.trim(),primaryTags:prim||[],secondaryTags:sec||[],images:imgs||[],note:'',createdAt:now,updatedAt:now});
+  items.unshift({id:id,content:content.trim(),primaryTags:prim||[],secondaryTags:sec||[],images:imgs||[],note:'',link:link||'',createdAt:now,updatedAt:now});
   sv();markDirty(id);
 }
 function deleteItem(id){items=items.filter(function(i){return i.id!==id;});sv();markDelete(id);}
@@ -1288,12 +1314,14 @@ function renderCard(item,bm,isSelected){
       '<button class="tag-edit-btn" data-action="open-editor" data-id="'+item.id+'">'+(hasTags?'编辑标签':'打标签')+'</button>'+
     '</div>'+
     renderNoteBlock(item)+
+    renderLinkBlock(item)+
     '<div class="tag-editor" id="editor-'+item.id+'"></div>'+
     '<div class="card-footer">'+
       '<span class="card-date">'+fmtDate(item.createdAt)+'</span>'+
       '<div class="card-actions">'+
         '<button class="card-action-btn" data-action="edit" data-id="'+item.id+'">编辑内容</button>'+
         '<button class="card-action-btn note-btn" data-action="edit-note" data-id="'+item.id+'">✎ 备注</button>'+
+        '<button class="card-action-btn link-btn" data-action="edit-link" data-id="'+item.id+'">🔗 链接</button>'+
         '<button class="card-action-btn danger" data-action="delete" data-id="'+item.id+'">删除</button>'+
       '</div>'+
     '</div>'+
@@ -1311,6 +1339,15 @@ function renderNoteBlock(item){
     '</div>'+
     '<div class="card-note-text" id="noteText-'+item.id+'">'+noteHtml+'</div>'+
   '</div>';
+}
+
+// === Material source link block (direct jump) ===
+function renderLinkBlock(item){
+  var link=(item.link||'').trim();
+  if(!link)return '';
+  var host='';
+  try{host=new URL(link).hostname.replace(/^www\./,'');}catch(e){host='';}
+  return '<div class="card-link" data-action="open-link" data-id="'+item.id+'" title="'+esc(link)+'">🔗 跳转来源'+(host?(' · '+esc(host)):'')+'</div>';
 }
 
 // === Expand / collapse material content (default 3 lines, tap/hold to view all) ===
@@ -1786,6 +1823,7 @@ function runSearch(){
     results=results.filter(function(item){
       if(item.content.toLowerCase().indexOf(lq)!==-1)return true;
       if((item.note||'').toLowerCase().indexOf(lq)!==-1)return true;
+      if((item.link||'').toLowerCase().indexOf(lq)!==-1)return true;
       return false;
     });
   }
@@ -2023,6 +2061,45 @@ function clearNote(){
   showToast('备注已清空');
 }
 
+// === Source link (direct jump) ===
+var linkTargetId=null;
+function normalizeUrl(v){
+  v=(v||'').trim();
+  if(!v)return '';
+  if(!/^https?:\/\//i.test(v))v='https://'+v;
+  return v;
+}
+function openLinkModal(id){
+  var item=findItem(id);
+  if(!item)return;
+  linkTargetId=id;
+  var src=(item.content||'').trim();
+  document.getElementById('linkSource').textContent='素材：'+(src.length>60?src.slice(0,60)+'…':src);
+  var inp=document.getElementById('linkInput');
+  inp.value=item.link||'';
+  document.getElementById('linkModal').classList.add('show');
+  setTimeout(function(){inp.focus();},60);
+}
+function closeLinkModal(){
+  var m=document.getElementById('linkModal');
+  if(m)m.classList.remove('show');
+  linkTargetId=null;
+}
+function saveLink(){
+  var item=findItem(linkTargetId);
+  if(!item)return;
+  item.link=normalizeUrl(document.getElementById('linkInput').value);
+  item.updatedAt=new Date().toISOString();
+  sv();markDirty(item.id);
+  closeLinkModal();renderAll();
+  showToast(item.link?'链接已保存':'链接已清空');
+}
+function openLink(id){
+  var item=findItem(id);
+  if(!item||!item.link)return;
+  window.open(item.link,'_blank','noopener');
+}
+
 // === Tabs ===
 function switchTab(tab){
   currentTab=tab;
@@ -2101,6 +2178,7 @@ function importJSON(file){  var reader=new FileReader();
         if(!item.primaryTags)item.primaryTags=[];
         if(!item.secondaryTags)item.secondaryTags=[];
         if(!item.note)item.note='';
+        if(!item.link)item.link='';
         if(!item.createdAt)item.createdAt=new Date().toISOString();
         if(!item.updatedAt)item.updatedAt=item.createdAt;
         if(typeof item.content!=='string')return;
@@ -2192,14 +2270,17 @@ function setupEvents(){
   safeOn('captureBtn','click',function(){
     var content=document.getElementById('captureInput').value.trim();
     if(!content&&captureImages.length===0){showToast('先写点什么吧');return;}
+    var linkVal=document.getElementById('captureLink').value;
+    if(!linkVal&&/^https?:\/\//i.test(content))linkVal=content; // 内容本身就是链接时自动识别为来源
     var tags=captureTagsSel.slice();
     var prim=[],sec=[];
     tags.forEach(function(t){
       if(PRIMARY_DEFAULTS.indexOf(t)!==-1||settings.customPrimary.indexOf(t)!==-1)prim.push(t);
       else sec.push(t);
     });
-    addItem(content,prim,sec,captureImages.slice());
+    addItem(content,prim,sec,captureImages.slice(),linkVal);
     document.getElementById('captureInput').value='';
+    document.getElementById('captureLink').value='';
     captureImages=[];
     captureTagsSel=[];
     renderCaptureImages();
@@ -2391,6 +2472,13 @@ function setupEvents(){
       else if(action==='edit-note'){
         closeAllEditors();
         openNoteModal(id);
+      }
+      else if(action==='edit-link'){
+        closeAllEditors();
+        openLinkModal(id);
+      }
+      else if(action==='open-link'){
+        openLink(id);
       }
       else if(action==='rm-tag'){
         var tag=btn.dataset.tag,type=btn.dataset.type;
@@ -2796,6 +2884,17 @@ function setupEvents(){
   safeOn('noteClear','click',clearNote);
   safeOn('noteModal','click',function(e){if(e.target===this)closeNoteModal();});
 
+  // Source link modal
+  safeOn('linkCancel','click',closeLinkModal);
+  safeOn('linkSave','click',saveLink);
+  safeOn('linkClear','click',function(){document.getElementById('linkInput').value='';});
+  safeOn('linkOpen','click',function(){
+    var v=normalizeUrl(document.getElementById('linkInput').value);
+    if(v)window.open(v,'_blank','noopener');
+    else showToast('请先输入链接');
+  });
+  safeOn('linkModal','click',function(e){if(e.target===this)closeLinkModal();});
+
   // Data management
   safeOn('clearSampleBtn','click',function(){
     var si=items.filter(function(i){return i.id.indexOf('sample_')===0;});
@@ -3002,7 +3101,6 @@ function registerBackgroundSync(){
     navigator.serviceWorker.ready.then(function(reg){if(reg.sync)return reg.sync.register('lanxingce-sync');}).catch(function(){});
   }
 }
-var cloudImgCache={};
 
 function setCloudBtnState(state){
   var b=document.getElementById('cloudBtn');
@@ -3107,79 +3205,38 @@ function cloudLogout(){
   });
 }
 
-function cloudPathToUrl(path){
-  if(!path)return '';
-  if(/^https?:\/\//.test(path))return path;
-  try{return sbClient.storage.from(SB_BUCKET).getPublicUrl(path).data.publicUrl;}catch(e){return '';}
-}
-function cloudUrlToPath(url){
-  if(!url)return url;
-  try{
-    var u=new URL(url);
-    var parts=u.pathname.split('/');
-    var i=parts.indexOf(SB_BUCKET);
-    if(i!==-1)return parts.slice(i+1).join('/');
-  }catch(e){}
-  return url;
-}
-function cloudUploadImage(dataUrl,uid,itemId,idx){
-  if(cloudImgCache[dataUrl])return Promise.resolve(cloudImgCache[dataUrl]);
-  return new Promise(function(resolve){
-    try{
-      var arr=dataUrl.split(','),mime=(arr[0].match(/:(.*?);/)||[])[1]||'image/jpeg';
-      var bstr=atob(arr[1]),n=bstr.length,buf=new Uint8Array(n);
-      for(var i=0;i<n;i++)buf[i]=bstr.charCodeAt(i);
-      var blob=new Blob([buf],{type:mime});
-      var path=uid+'/'+itemId+'/'+idx+'.jpg';
-      sbClient.storage.from(SB_BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:true,cacheControl:'3600'}).then(function(up){
-        if(up.error){console.error('图片上传失败',up.error);resolve(dataUrl);}
-        else{cloudImgCache[dataUrl]=path;resolve(path);}
-      }).catch(function(e){console.error(e);resolve(dataUrl);});
-    }catch(e){resolve(dataUrl);}
-  });
-}
-function cloudResolveImagesForPush(item,uid){
-  var imgs=item.images||[];
-  var tasks=imgs.map(function(img,i){
-    if(typeof img==='string'&&img.indexOf('data:')===0)return cloudUploadImage(img,uid,item.id,i);
-    if(typeof img==='string'&&/^https?:\/\//.test(img))return Promise.resolve(cloudUrlToPath(img));
-    return Promise.resolve(img);
-  });
-  return Promise.all(tasks);
-}
 function cloudPushItem(item){
   if(!sbClient||!cloudUser)return Promise.resolve();
   var uid=cloudUser.id;
-  return cloudResolveImagesForPush(item,uid).then(function(paths){
-    var row={
-      id:item.id,
-      user_id:uid,
-      content:item.content||'',
-      primary_tags:item.primaryTags||[],
-      secondary_tags:item.secondaryTags||[],
-      images:paths,
-      created_at:item.createdAt,
-      updated_at:item.updatedAt||new Date().toISOString()
-    };
-    function doUpsert(r){
-      return sbClient.from('fragments').upsert(r,{onConflict:'id'}).then(function(up){
-        if(up.error){console.error('推送失败',up.error);return Promise.reject(up.error);}
-        var resolved=paths.map(cloudPathToUrl);
-        item.images=resolved;
-        sv();
-      });
-    }
-    return doUpsert(row).catch(function(err){
-      // 若用户尚未在 Supabase 的 fragments 表添加 note 列，upsert 会因未知列报错；
-      // 此时剔除 note 重试一次，保证其余字段仍可同步，备注仅留本地。
-      var msg=JSON.stringify(err||'');
-      if(/note/.test(msg)){
-        var r2=Object.assign({},row);delete r2.note;
-        console.warn('fragments 表缺少 note 列，备注暂未同步（请到 Supabase SQL 编辑器执行 ALTER TABLE fragments ADD COLUMN note text DEFAULT \'\';）');
-        return doUpsert(r2);
-      }
-      return Promise.reject(err);
+  // 图片素材不再推送到云端，节省云存储空间（本地图片保留在浏览器，绝不覆盖为远程空值）
+  var row={
+    id:item.id,
+    user_id:uid,
+    content:item.content||'',
+    primary_tags:item.primaryTags||[],
+    secondary_tags:item.secondaryTags||[],
+    note:item.note||'',
+    link:item.link||'',
+    images:[],
+    created_at:item.createdAt,
+    updated_at:item.updatedAt||new Date().toISOString()
+  };
+  function doUpsert(r){
+    return sbClient.from('fragments').upsert(r,{onConflict:'id'}).then(function(up){
+      if(up.error){console.error('推送失败',up.error);return Promise.reject(up.error);}
+      sv();
     });
+  }
+  return doUpsert(row).catch(function(err){
+    // 若用户尚未在 Supabase 的 fragments 表添加 note / link 列，upsert 会因未知列报错；
+    // 此时剔除这两个可选列重试一次，保证其余字段仍可同步，备注/链接仅留本地。
+    var msg=JSON.stringify(err||'');
+    if(/note|link|column/i.test(msg)){
+      var r2=Object.assign({},row);delete r2.note;delete r2.link;
+      console.warn('fragments 表可能缺少 note/link 列，备注与链接暂未同步（请到 Supabase SQL 编辑器执行：ALTER TABLE fragments ADD COLUMN note text DEFAULT \'\'; ALTER TABLE fragments ADD COLUMN link text DEFAULT \'\';）');
+      return doUpsert(r2);
+    }
+    return Promise.reject(err);
   });
 }
 function cloudPullThenPush(){
@@ -3201,6 +3258,8 @@ function cloudPullThenPush(){
       var local=localMap[r.id];
       var remoteUpdated=new Date(r.updated_at).getTime();
       var localUpdated=local?new Date(local.updatedAt).getTime():0;
+      // 云端不存图片，拉取时保留本机已有的图片（不覆盖为空）
+      var keepImages = local ? (local.images||[]) : [];
       if(!local||remoteUpdated>localUpdated){
         localMap[r.id]={
           id:r.id,
@@ -3208,7 +3267,8 @@ function cloudPullThenPush(){
           primaryTags:r.primary_tags||[],
           secondaryTags:r.secondary_tags||[],
           note:r.note||'',
-          images:(r.images||[]).map(cloudPathToUrl),
+          link:r.link||'',
+          images:keepImages,
           createdAt:r.created_at||new Date().toISOString(),
           updatedAt:r.updated_at||new Date().toISOString()
         };
@@ -3262,7 +3322,11 @@ function markDirty(id){
   if(!id)return;
   cloudDirty[id]=true;
   var it=findItem(id);
-  if(it)idbPut('pending',{id:id,kind:'upsert',item:JSON.parse(JSON.stringify(it))}).catch(function(){});
+  if(it){
+    var copy=JSON.parse(JSON.stringify(it));
+    copy.images=[];   // 图片不进同步队列，节省本地与云端空间
+    idbPut('pending',{id:id,kind:'upsert',item:copy}).catch(function(){});
+  }
   scheduleFlush();
 }
 function markDelete(id){
@@ -3275,7 +3339,9 @@ function markDelete(id){
 function markAllDirty(){
   items.forEach(function(it){
     cloudDirty[it.id]=true;
-    idbPut('pending',{id:it.id,kind:'upsert',item:JSON.parse(JSON.stringify(it))}).catch(function(){});
+    var copy=JSON.parse(JSON.stringify(it));
+    copy.images=[];   // 图片不进同步队列，节省本地与云端空间
+    idbPut('pending',{id:it.id,kind:'upsert',item:copy}).catch(function(){});
   });
   scheduleFlush();
 }
@@ -3317,12 +3383,14 @@ function renderTodayModal(){
       tags='<span class="today-card-tag" style="background:#f3d9cf;color:#9d8189">未标签</span>';
     }
     var noteLine=(it.note||'').trim()?'<div class="today-card-note">💡 '+esc(it.note)+'</div>':'';
+    var linkLine=(it.link||'').trim()?'<div class="today-card-link" data-action="open-link" data-id="'+it.id+'" title="'+esc(it.link)+'">🔗 跳转来源</div>':'';
     html+='<div class="today-card-view">'+
       '<div class="today-card-text collapsed" data-id="'+it.id+'">'+esc(it.content)+'</div>'+
       '<div class="today-card-more show" data-id="'+it.id+'">展开全文 ▾</div>'+
       imgs+
       '<div class="today-card-tags">'+tags+'</div>'+
       noteLine+
+      linkLine+
       '<div class="today-card-date">'+fmtDate(it.createdAt)+'</div>'+
     '</div>';
   });
@@ -3387,7 +3455,7 @@ function updateCloudModal(){
     if(lo)lo.onclick=cloudLogout;
   }else{
     body.innerHTML=
-      '<p style="font-size:13px;color:#9d8189;margin-bottom:10px">登录后即可在多设备间同步素材（内容、标签、图片）。</p>'+
+      '<p style="font-size:13px;color:#9d8189;margin-bottom:10px">登录后即可在多设备间同步素材（内容、标签、备注）。<br>图片仅保存在本机，不同步到云端。</p>'+
       '<input id="cloudEmail" type="email" placeholder="邮箱" style="margin-bottom:8px" />'+
       '<input id="cloudPassword" type="password" placeholder="密码（至少 6 位）" style="margin-bottom:10px" />'+
       '<button class="modal-btn modal-confirm primary-confirm" id="cloudLogin" style="width:100%;min-height:42px">登录 / 注册</button>'+
