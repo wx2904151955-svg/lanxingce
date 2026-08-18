@@ -2097,7 +2097,25 @@ function saveLink(){
 function openLink(id){
   var item=findItem(id);
   if(!item||!item.link)return;
-  window.open(item.link,'_blank','noopener');
+  var url=item.link;
+  // PWA / 移动端（尤其 iOS 安装的 PWA）用 window.open(_blank) 常被拦截，
+  // 改用 <a target="_blank"> 触发点击，跨平台最可靠；失败再兜底。
+  try{
+    var a=document.createElement('a');
+    a.href=url;
+    a.target='_blank';
+    a.rel='noopener noreferrer';
+    a.style.position='fixed';
+    a.style.left='-9999px';
+    a.style.top='-9999px';
+    a.style.width='1px';
+    a.style.height='1px';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ if(a.parentNode)a.parentNode.removeChild(a); },300);
+  }catch(e){
+    try{ window.open(url,'_blank'); }catch(e2){ window.location.href=url; }
+  }
 }
 
 // === Tabs ===
